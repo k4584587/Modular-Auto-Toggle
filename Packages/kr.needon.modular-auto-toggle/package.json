@@ -1,0 +1,12 @@
+{
+  "name": "kr.needon.modular-auto-toggle",
+  "displayName": "Modular Auto Toggle Tool",
+  "version": "1.0.6",
+  "unity": "2019.4",
+  "vrchatVersion": "2022.1.1",
+  "author": {
+    "name": "Hirami",
+    "email": "admin@needon.kr",
+    "url": "https://needon.kr"
+  }
+}
