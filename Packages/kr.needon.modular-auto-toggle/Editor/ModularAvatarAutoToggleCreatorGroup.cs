@@ -274,21 +274,21 @@ namespace Hirami.Scripts
                 animatorController.AddLayer(layer);
             }
             
-            var offState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_off", animatorController);
-            var onState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_on", animatorController);
+            var onState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_off", animatorController);
+            var offState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_on", animatorController);
             
-            LinkAnimationClipToState(offState, groupName, "off");
-            LinkAnimationClipToState(onState, groupName, "on");
+            LinkAnimationClipToState(onState, groupName, "off");
+            LinkAnimationClipToState(offState, groupName, "on");
             
             var transitionToOff = layer.stateMachine.AddAnyStateTransition(offState);
             transitionToOff.hasExitTime = false;
             transitionToOff.duration = 0;
-            transitionToOff.AddCondition(AnimatorConditionMode.IfNot, 0, parameterName);
+            transitionToOff.AddCondition(AnimatorConditionMode.If, 0, parameterName);
             
             var transitionToOn = layer.stateMachine.AddAnyStateTransition(onState);
             transitionToOn.hasExitTime = false;
             transitionToOn.duration = 0;
-            transitionToOn.AddCondition(AnimatorConditionMode.If, 0, parameterName);
+            transitionToOn.AddCondition(AnimatorConditionMode.IfNot, 0, parameterName);
             
             EditorUtility.SetDirty(animatorController);
             AssetDatabase.SaveAssets();
@@ -328,8 +328,8 @@ namespace Hirami.Scripts
             var offState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_off", animatorController);
             var onState = FindOrCreateState(layer.stateMachine, $"Group_{groupName}_on", animatorController);
 
-            LinkAnimationClipToState(offState, groupName, "off");
-            LinkAnimationClipToState(onState, groupName, "on");
+            LinkAnimationClipToState(onState, groupName, "off");
+            LinkAnimationClipToState(offState, groupName, "on");
 
             CreateOrUpdateTransition(layer.stateMachine, offState, layerName, false);
             CreateOrUpdateTransition(layer.stateMachine, onState, layerName, true);
@@ -355,7 +355,7 @@ namespace Hirami.Scripts
             {
                 new AnimatorCondition
                 {
-                    mode = conditionValue ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot,
+                    mode = conditionValue ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, // 조건의 참/거짓 값을 반대로 설정
                     parameter = parameterName,
                     threshold = 0
                 }
