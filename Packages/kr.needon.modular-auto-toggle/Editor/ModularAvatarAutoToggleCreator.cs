@@ -143,8 +143,8 @@ namespace Hirami.Scripts
         
         
         private static string Md5Hash(string input)
-        {
-            using MD5 md5 = MD5.Create();
+        { 
+            MD5 md5 = MD5.Create();
             byte[] inputBytes = Encoding.ASCII.GetBytes(input);
             byte[] hashBytes = md5.ComputeHash(inputBytes);
 
