@@ -1,13 +1,11 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
-
-
-
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
 
+
+//v1.0.7
 namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
 {
     public class ToggleNameChange : MonoBehaviour
@@ -32,9 +30,7 @@ namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
 
     }
 
-
-
-#if UNITY_EDITOR
+    
 
     [InitializeOnLoad]
     public class GameObjectNameChangeLogger : Editor
@@ -47,8 +43,6 @@ namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
 
         internal static void UpdateNameInJson(string oldName, string newName)
         {
-            Debug.Log("UpdateNameInJson oldName :: " + oldName);
-            Debug.Log("UpdateNameInJson newName :: " + newName);
 
             string filePath = "Assets/Hirami/Toggle/NameHashMappings.json";
             NameHashMappings mappings = JsonHelper.LoadNameHashMappings(filePath);
@@ -66,7 +60,10 @@ namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
             // 중복 횟수가 3개 이상이면 이름 변경을 취소합니다.
             if (duplicateCount >= 3)
             {
-                EditorUtility.DisplayDialog("중복확인", "중복된 이름이 있습니다. 다른이름을 사용해주세요.", "OK");
+                EditorUtility.DisplayDialog("Duplicate Check / 중복확인", 
+                    "A duplicate name has been detected. Please use a different name.\n중복된 이름이 있습니다. 다른 이름을 사용해주세요.", 
+                    "OK");
+
                 return; // 메서드 종료
             }
 
@@ -97,7 +94,7 @@ namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
                 if (tracker != null && go.name != tracker.PreviousName)
                 {
                     UpdateNameInJson(tracker.PreviousName, go.name);
-                    tracker.PreviousName = "Toggle_" + go.name; // 이름을 업데이트합니다.
+                    tracker.PreviousName = "Toggle_" + go.name; 
                 }
             }
         }
@@ -140,5 +137,5 @@ namespace kr.needon.modular_auto_toggle.runtime.ToggleNameChange
         public List<NameHashMapping> mappings;
     }
 
-#endif
 }
+#endif

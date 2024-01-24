@@ -13,7 +13,7 @@ using VRC.SDK3.Avatars.ScriptableObjects;
 using static Editor.GroupTogglePrefabCreatorGroups;
 
 //v1.0.7
-namespace Hirami.Scripts
+namespace Editor
 {
     public abstract class TogglePrefabCreator
     {

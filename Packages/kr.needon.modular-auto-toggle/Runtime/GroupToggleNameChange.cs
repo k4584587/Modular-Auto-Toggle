@@ -1,12 +1,9 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
-
-
-
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
+
 
 namespace kr.needon.modular_auto_toggle.runtime.GroupToggleNameChange
 {
@@ -31,10 +28,7 @@ namespace kr.needon.modular_auto_toggle.runtime.GroupToggleNameChange
         }
 
     }
-
-
-
-#if UNITY_EDITOR
+    
 
     [InitializeOnLoad]
     public class GameObjectNameChangeLogger : Editor
@@ -120,6 +114,5 @@ internal static void UpdateNameInJson(string oldName, string newName)
     {
         public List<NameHashMapping> mappings;
     }
-
-#endif
 }
+#endif
