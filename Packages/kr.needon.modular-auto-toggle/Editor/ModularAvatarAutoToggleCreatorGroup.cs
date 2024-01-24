@@ -1,11 +1,9 @@
 #if UNITY_EDITOR
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using JetBrains.Annotations;
 using kr.needon.modular_auto_toggle.runtime.GroupToggleNameChange;
 using nadena.dev.modular_avatar.core;
 using UnityEditor;
@@ -24,9 +22,23 @@ namespace Editor
         private static void CreateGroupToggleItems()
         {
             var selectedObjects = Selection.gameObjects;
+            
+            if (Selection.gameObjects.Length == 0)
+            {
+                Debug.LogError("The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 GameObject들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.");
+                EditorUtility.DisplayDialog("Error", "The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 GameObject들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.", "OK");
+                return;
+            }
+            
             if (selectedObjects.Length < 2)
             {
                 Debug.LogError("Please select at least two GameObjects.");
+                EditorUtility.DisplayDialog(
+                    "Warning",   
+                    "Please select at least two GameObjects.\n적어도 두 개의 오브젝트를 선택해주세요.", 
+                    "OK"
+                );
+
                 return;
             }
 
@@ -65,7 +77,7 @@ namespace Editor
 
                 // 로딩 바 종료
                 EditorUtility.ClearProgressBar();
-                EditorUtility.DisplayDialog("Toggle Items Creation", "All toggle items have been created successfully.",
+                EditorUtility.DisplayDialog("Toggle Items Creation", "All toggle items have been created successfully.\n\n모든 토글 아이템이 성공적으로 생성되었습니다.",
                     "OK");
 
                 AssetDatabase.SaveAssets();
@@ -138,12 +150,12 @@ namespace Editor
 
             var rootGameObject = selectedPrefab.transform.root.gameObject;
 
-            var togglesTransform = rootGameObject.transform.Find("GroupToggle");
+            var togglesTransform = rootGameObject.transform.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
             var togglesGameObject = togglesTransform != null ? togglesTransform.gameObject : null;
 
             if (togglesGameObject == null)
             {
-                togglesGameObject = new GameObject("GroupToggle");
+                togglesGameObject = new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
                 togglesGameObject.transform.SetParent(rootGameObject.transform, false);
             }
 
@@ -159,7 +171,7 @@ namespace Editor
 
         private static void AddComponentsToToggleItem(GameObject obj, string groupName)
         {
-            var togglesGameObject = GameObject.Find("GroupToggle") ?? new GameObject("GroupToggle");
+            var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting()) ?? new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
             if (togglesGameObject.transform.parent == null)
             {
                 togglesGameObject.transform.SetParent(obj.transform.parent);
@@ -172,9 +184,6 @@ namespace Editor
                 TogglesConfigureSubMenuItem(togglesGameObject);
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
 
             var controllerPath = $"Assets/Hirami/Toggle/group_toggle_fx.controller";
 
@@ -207,8 +216,8 @@ namespace Editor
             obj.AddComponent<GroupToggleNameChange>();
 
 
-            ConfigureAvatarParameters(obj, "Group_" + groupName);
-            ConfigureMenuItem(obj, "Group_" + groupName);
+            ConfigureAvatarParameters(obj, Md5Hash(groupName));
+            ConfigureMenuItem(obj, Md5Hash(groupName));
 
 
             AssetDatabase.SaveAssets();
@@ -262,203 +271,163 @@ namespace Editor
 
         private static AnimatorController CreateToggleAnimatorController(string groupName)
         {
-            Debug.Log("CreateToggleAnimatorController 함수 시작");
             var layerName = $"Group_{groupName}";
             var controllerPath = $"Assets/Hirami/Toggle/group_toggle_fx.controller";
-            var animatorController = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
-
-
-            if (animatorController == null)
+            
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_off.anim";
+            
+            var animatorController = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath) ?? AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+            
+     
+            AnimatorStateMachine stateMachine = new AnimatorStateMachine
             {
-                animatorController = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
-
-                if (animatorController.layers.Any(l => l.name == "Base Layer"))
-                {
-                    var layersList = animatorController.layers.ToList();
-                    layersList.RemoveAll(l => l.name == "Base Layer");
-                    animatorController.layers = layersList.ToArray();
-                }
-            }
-
-
-            var parameterName = layerName;
-            if (animatorController.parameters.All(p => p.name != parameterName))
+                name = Md5Hash(groupName),
+                hideFlags = HideFlags.HideInHierarchy
+            };
+            AssetDatabase.AddObjectToAsset(stateMachine, animatorController);
+            animatorController.layers = new AnimatorControllerLayer[]
             {
-                var parameter = new AnimatorControllerParameter
+                new AnimatorControllerLayer
                 {
-                    name = parameterName,
-                    type = AnimatorControllerParameterType.Bool,
-                    defaultBool = true
-                };
-                animatorController.AddParameter(parameter);
-            }
-
-            var layer = animatorController.layers.FirstOrDefault(l => l.name == layerName);
-            if (layer == null)
-            {
-                layer = new AnimatorControllerLayer
-                {
-                    name = layerName,
-                    stateMachine = new AnimatorStateMachine(),
+                    name = Md5Hash(groupName),
+                    stateMachine = stateMachine,
                     defaultWeight = 1f
-                };
-                AssetDatabase.AddObjectToAsset(layer.stateMachine, animatorController);
-                animatorController.AddLayer(layer);
-            }
+                }
+            };
 
-            var hashedGroupName = Md5Hash(groupName); // 그룹 이름을 해시하여 사용
+            AnimatorControllerParameter parameter = new AnimatorControllerParameter
+            {
+                name = Md5Hash(groupName),
+                type = AnimatorControllerParameterType.Bool,
+                defaultBool = true
+            };
+            animatorController.AddParameter(parameter);
+            
+            AnimationClip offClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath);
+            AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath);
 
-            var offState = FindOrCreateState(layer.stateMachine, $"Group_{hashedGroupName}_off", animatorController);
-            var onState = FindOrCreateState(layer.stateMachine, $"Group_{hashedGroupName}_on", animatorController);
-
+            // toggleReverse 설정 값에 따라 상태 추가
             bool toggleReverse = ReadToggleReverseSetting();
+            AnimatorState firstState, secondState;
+            
+            firstState = stateMachine.AddState("Off");
+            firstState.motion = offClip;
+            secondState = stateMachine.AddState("On");
+            secondState.motion = onClip;
 
-            LinkAnimationClipToState(offState, groupName, "off");
-            LinkAnimationClipToState(onState, groupName, "on");
+            // 트랜지션 설정
+           
+            
+            // Determine the condition modes based on the toggleReverse flag
+            AnimatorConditionMode conditionModeForSecond = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
+            AnimatorConditionMode conditionModeForFirst = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
 
-            Debug.Log("toggleReverse ::" + toggleReverse);
+            // Create the transition to the second state
+            AnimatorStateTransition transitionToSecond = firstState.AddTransition(secondState);
+            transitionToSecond.hasExitTime = false;
+            transitionToSecond.exitTime = 0f;
+            transitionToSecond.duration = 0f;
+            transitionToSecond.AddCondition(conditionModeForSecond, 0, Md5Hash(groupName));
 
-            if (toggleReverse)
-            {
-                Debug.Log(
-                    "UpdateToggleAnimatorController CreateToggleAnimatorController Group Toggle toggleReverse 반전 상태 왔음");
-                CreateOrUpdateTransition(layer.stateMachine, offState, layerName, false);
-                CreateOrUpdateTransition(layer.stateMachine, onState, layerName, true);
-            }
-            else
-            {
-                // 기본값 일때
-                Debug.Log("UpdateToggleAnimatorController Group Toggle toggleReverse 반전 아닌상태 왔음 (기본값)");
-                CreateOrUpdateTransition(layer.stateMachine, onState, layerName, false);
-                CreateOrUpdateTransition(layer.stateMachine, offState, layerName, true);
-            }
+            // Create the transition to the first state
+            AnimatorStateTransition transitionToFirst = secondState.AddTransition(firstState);
+            transitionToFirst.hasExitTime = false;
+            transitionToFirst.exitTime = 0f;
+            transitionToFirst.duration = 0f;
+            transitionToFirst.AddCondition(conditionModeForFirst, 0, Md5Hash(groupName));
 
 
+            // 변경 사항 저장
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            
             return animatorController;
         }
 
         private static void UpdateToggleAnimatorController(AnimatorController animatorController, string groupName)
         {
-            Debug.Log("UpdateToggleAnimatorController 함수 탔음");
-            var layerName = $"Group_{groupName}";
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_off.anim";
+            
+            // 애니메이션 클립 로드 또는 생성
+            AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath) ?? new AnimationClip();
+            AnimationClip offClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath) ?? new AnimationClip();
 
-            if (animatorController.parameters.All(p => p.name != layerName))
+            // 새로운 파라미터 생성 및 추가
+            AnimatorControllerParameter newParam = new AnimatorControllerParameter
             {
-                var parameter = new AnimatorControllerParameter
-                {
-                    name = layerName,
-                    type = AnimatorControllerParameterType.Bool,
-                    defaultBool = true
-                };
-                animatorController.AddParameter(parameter);
+                name = Md5Hash(groupName),
+                type = AnimatorControllerParameterType.Bool,
+                defaultBool = true
+            };
+            if (!animatorController.parameters.Any(p => p.name == Md5Hash(groupName)))
+            {
+                animatorController.AddParameter(newParam);
             }
 
-            var layer = animatorController.layers.FirstOrDefault(l => l.name == layerName);
-            if (layer == null)
+            // 새로운 레이어 생성 및 추가
+            AnimatorControllerLayer newLayer = new AnimatorControllerLayer
             {
-                layer = new AnimatorControllerLayer
-                {
-                    name = layerName,
-                    stateMachine = new AnimatorStateMachine(),
-                    defaultWeight = 1f
-                };
-                AssetDatabase.AddObjectToAsset(layer.stateMachine, animatorController);
-                animatorController.AddLayer(layer);
+                name = Md5Hash(groupName),
+                stateMachine = new AnimatorStateMachine(),
+                defaultWeight = 1f
+            };
+            if (!animatorController.layers.Any(l => l.name == Md5Hash(groupName)))
+            {
+                AssetDatabase.AddObjectToAsset(newLayer.stateMachine, animatorController);
+                animatorController.AddLayer(newLayer);
             }
 
-            var hashedGroupName = Md5Hash(groupName);
+            // 상태 및 트랜지션 구성
+            ConfigureStateAndTransition(newLayer.stateMachine, onClip, offClip, Md5Hash(groupName));
 
-            var offState = FindOrCreateState(layer.stateMachine, $"Group_{hashedGroupName}_off", animatorController);
-            var onState = FindOrCreateState(layer.stateMachine, $"Group_{hashedGroupName}_on", animatorController);
-
-            LinkAnimationClipToState(offState, groupName, "off");
-            LinkAnimationClipToState(onState, groupName, "on");
+            // 변경 사항 저장
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+           
+        }
+        
+        private static void ConfigureStateAndTransition(AnimatorStateMachine stateMachine, AnimationClip onClip, AnimationClip offClip, string paramName)
+        {
 
             bool toggleReverse = ReadToggleReverseSetting();
-            Debug.Log("toggleReverse ::" + toggleReverse);
+            AnimatorState onState, offState;
+            
+            offState = stateMachine.AddState("Off");
+            offState.motion = offClip;
+            onState = stateMachine.AddState("On");
+            onState.motion = onClip;
+
+            
+            // 트랜지션 생성 및 설정
+            AnimatorStateTransition toOnTransition;
+            AnimatorStateTransition toOffTransition;
 
             if (toggleReverse)
             {
-                Debug.Log("UpdateToggleAnimatorController Group Toggle toggleReverse 반전 상태 왔음");
+                // If toggleReverse is true, reverse the transitions
+                toOnTransition = offState.AddTransition(onState);
+                toOnTransition.AddCondition(AnimatorConditionMode.IfNot, 0, paramName);
+                toOnTransition.hasExitTime = false;
 
-                CreateOrUpdateTransition(layer.stateMachine, offState, layerName, false);
-                CreateOrUpdateTransition(layer.stateMachine, onState, layerName, true);
+                toOffTransition = onState.AddTransition(offState);
+                toOffTransition.AddCondition(AnimatorConditionMode.If, 0, paramName);
+                toOffTransition.hasExitTime = false;
             }
             else
             {
-                Debug.Log("UpdateToggleAnimatorController Group Toggle toggleReverse 반전 아닌상태 왔음 (기본값)");
-                CreateOrUpdateTransition(layer.stateMachine, onState, layerName, false);
-                CreateOrUpdateTransition(layer.stateMachine, offState, layerName, true);
+                // If toggleReverse is false, use the normal transitions
+                toOnTransition = offState.AddTransition(onState);
+                toOnTransition.AddCondition(AnimatorConditionMode.If, 0, paramName);
+                toOnTransition.hasExitTime = false;
+
+                toOffTransition = onState.AddTransition(offState);
+                toOffTransition.AddCondition(AnimatorConditionMode.IfNot, 0, paramName);
+                toOffTransition.hasExitTime = false;
             }
-
-
-            EditorUtility.SetDirty(animatorController);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-        }
-
-
-        private static void CreateOrUpdateTransition(AnimatorStateMachine stateMachine, AnimatorState targetState,
-            string parameterName, bool conditionValue)
-        {
-            var transition = stateMachine.anyStateTransitions.FirstOrDefault(t => t.destinationState == targetState);
-            if (transition == null)
-            {
-                transition = stateMachine.AddAnyStateTransition(targetState);
-            }
-
-            transition.hasExitTime = false;
-            transition.duration = 0;
-            transition.conditions = new[]
-            {
-                new AnimatorCondition
-                {
-                    mode = conditionValue
-                        ? AnimatorConditionMode.IfNot
-                        : AnimatorConditionMode.If, // 조건의 참/거짓 값을 반대로 설정
-                    parameter = parameterName,
-                    threshold = 0
-                }
-            };
-        }
-
-        private static AnimatorState FindOrCreateState(AnimatorStateMachine stateMachine, string stateName,
-            [NotNull] AnimatorController animatorController)
-        {
-            if (animatorController == null) throw new ArgumentNullException(nameof(animatorController));
-            var state = stateMachine.states.FirstOrDefault(s => s.state.name == stateName).state;
-            if (state != null) return state;
-            state = stateMachine.AddState(stateName);
-
-            var clip = new AnimationClip { name = stateName };
-            AssetDatabase.AddObjectToAsset(clip, animatorController);
-            state.motion = clip;
-
-            return state;
-        }
-
-        private static void LinkAnimationClipToState(AnimatorState state, string groupName, string clipSuffix)
-        {
-            var hashedGroupName = Md5Hash(groupName);
-
-            var clipName = $"Group_{hashedGroupName}_{clipSuffix}";
-            var clipPath = $"Assets/Hirami/Toggle/{clipName}.anim";
-
-            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
-
-            if (clip == null)
-            {
-                clip = new AnimationClip { name = clipName };
-                AssetDatabase.CreateAsset(clip, clipPath);
-
-                var curveBinding = EditorCurveBinding.FloatCurve("", typeof(GameObject), "m_IsActive");
-                var curve = new AnimationCurve(new Keyframe(0f, clipSuffix == "on" ? 1f : 0f));
-                AnimationUtility.SetEditorCurve(clip, curveBinding, curve);
-
-                EditorUtility.SetDirty(clip);
-            }
-
-            state.motion = clip;
+            
         }
 
         private static bool ReadToggleReverseSetting()
@@ -476,7 +445,7 @@ namespace Editor
 
 
         private static string Md5Hash(string input)
-        { 
+        {
             MD5 md5 = MD5.Create();
             byte[] inputBytes = Encoding.ASCII.GetBytes(input);
             byte[] hashBytes = md5.ComputeHash(inputBytes);
@@ -486,7 +455,7 @@ namespace Editor
             {
                 sb.Append(hashBytes[i].ToString("X2"));
             }
-
+ 
             return sb.ToString();
         }
 
@@ -537,6 +506,20 @@ namespace Editor
             AssetDatabase.Refresh();
         }
 
+        
+        private static string ReadGroupToggleMenuNameSetting()
+        {
+            string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
+            if (File.Exists(jsonFilePath))
+            {
+                string json = File.ReadAllText(jsonFilePath);
+                var settings = JsonUtility.FromJson<ToggleSettings>(json);
+                AssetDatabase.Refresh();
+                return settings.groupToggleMenuName;
+            }
+
+            return "";
+        }
 
         [System.Serializable]
         public class NameHashMapping
@@ -549,6 +532,7 @@ namespace Editor
                 mappings = new List<NameHashPair>();
             }
         }
+        
 
         [System.Serializable]
         public class NameHashPair

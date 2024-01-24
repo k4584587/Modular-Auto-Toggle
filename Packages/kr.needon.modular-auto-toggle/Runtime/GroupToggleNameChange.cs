@@ -37,7 +37,6 @@ namespace kr.needon.modular_auto_toggle.runtime.GroupToggleNameChange
 #if UNITY_EDITOR
 
     [InitializeOnLoad]
-    [CustomEditor(typeof(GameObject))]
     public class GameObjectNameChangeLogger : Editor
     {
 
