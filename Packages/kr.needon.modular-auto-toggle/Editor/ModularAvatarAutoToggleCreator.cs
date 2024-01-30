@@ -25,6 +25,10 @@ namespace Editor
         private static void CreateToggleItemsInHierarchy()
         {
             
+            // 폴더 생성
+            string folderPath = "Assets/Hirami/Toggle";
+            CreateFolderIfNotExist(folderPath);
+            
             Debug.Log("ToggleName :: " + TogglePrefabName);
 
             if (Selection.gameObjects.Length == 0)
@@ -483,6 +487,21 @@ namespace Editor
             }
 
             return "";
+        }
+        
+        private static void CreateFolderIfNotExist(string path)
+        {
+            string[] folders = path.Split('/');
+            string currentPath = "";
+            foreach (string folder in folders)
+            {
+                string folderPath = string.IsNullOrEmpty(currentPath) ? folder : $"{currentPath}/{folder}";
+                if (!AssetDatabase.IsValidFolder(folderPath))
+                {
+                    AssetDatabase.CreateFolder(currentPath, folder);
+                }
+                currentPath = folderPath;
+            }
         }
     }
 }

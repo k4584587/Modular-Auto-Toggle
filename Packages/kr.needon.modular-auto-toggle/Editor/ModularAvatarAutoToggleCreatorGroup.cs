@@ -21,6 +21,11 @@ namespace Editor
         [MenuItem("GameObject/Add Groups Toggle Items", false, 0)]
         private static void CreateGroupToggleItems()
         {
+            
+            // 폴더 생성
+            string folderPath = "Assets/Hirami/Toggle";
+            CreateFolderIfNotExist(folderPath);
+            
             var selectedObjects = Selection.gameObjects;
             
             if (Selection.gameObjects.Length == 0)
@@ -506,6 +511,21 @@ namespace Editor
             AssetDatabase.Refresh();
         }
 
+        
+        private static void CreateFolderIfNotExist(string path)
+        {
+            string[] folders = path.Split('/');
+            string currentPath = "";
+            foreach (string folder in folders)
+            {
+                string folderPath = string.IsNullOrEmpty(currentPath) ? folder : $"{currentPath}/{folder}";
+                if (!AssetDatabase.IsValidFolder(folderPath))
+                {
+                    AssetDatabase.CreateFolder(currentPath, folder);
+                }
+                currentPath = folderPath;
+            }
+        }
         
         private static string ReadGroupToggleMenuNameSetting()
         {
