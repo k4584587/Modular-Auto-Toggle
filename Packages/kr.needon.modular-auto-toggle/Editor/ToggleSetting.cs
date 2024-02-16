@@ -3,14 +3,14 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.7
+//v1.0.64
 namespace Editor
 {
     public class ToggleSetting : EditorWindow
     {
         private bool toggleReverse = false;
-        private string toggleMenuName = "Toggle"; 
-        private string groupToggleMenuName = "GroupToggle";
+        private string toggleMenuName = "Toggles"; 
+        private string groupToggleMenuName = "GroupToggles";
         private static string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
 
         [MenuItem("Hirami/Auto Toggle/Toggle Setting", false, 0)]
@@ -60,7 +60,7 @@ namespace Editor
                 {
                     toggleReverse = false,
                     toggleMenuName = "Toggles",
-                    groupToggleMenuName = "GroupToggle"
+                    groupToggleMenuName = "GroupToggles"
                 };
 
                 // JSON으로 변환
@@ -73,8 +73,8 @@ namespace Editor
 
                 // 사용자 인터페이스에도 기본값 설정
                 toggleReverse = false;
-                toggleMenuName = "Toggle";
-                groupToggleMenuName = "GroupToggle";
+                toggleMenuName = "Toggles";
+                groupToggleMenuName = "GroupToggles";
 
                 // 사용자에게 적용됐음을 알림
                 EditorUtility.DisplayDialog("Reset Settings / 설정 초기화", "Settings have been reset to default values.\n설정이 기본값으로 재설정되었습니다.", "OK");

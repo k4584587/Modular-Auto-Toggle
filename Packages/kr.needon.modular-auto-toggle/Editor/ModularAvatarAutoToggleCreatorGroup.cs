@@ -11,7 +11,7 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-//v1.0.7
+//v1.0.64
 namespace Editor
 {
     public abstract class GroupTogglePrefabCreatorGroups
@@ -21,11 +21,6 @@ namespace Editor
         [MenuItem("GameObject/Add Groups Toggle Items", false, 0)]
         private static void CreateGroupToggleItems()
         {
-            
-            // 폴더 생성
-            string folderPath = "Assets/Hirami/Toggle";
-            CreateFolderIfNotExist(folderPath);
-            
             var selectedObjects = Selection.gameObjects;
             
             if (Selection.gameObjects.Length == 0)
@@ -155,12 +150,12 @@ namespace Editor
 
             var rootGameObject = selectedPrefab.transform.root.gameObject;
 
-            var togglesTransform = rootGameObject.transform.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
+            var togglesTransform = rootGameObject.transform.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting());
             var togglesGameObject = togglesTransform != null ? togglesTransform.gameObject : null;
 
             if (togglesGameObject == null)
             {
-                togglesGameObject = new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
+                togglesGameObject = new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting());
                 togglesGameObject.transform.SetParent(rootGameObject.transform, false);
             }
 
@@ -176,7 +171,7 @@ namespace Editor
 
         private static void AddComponentsToToggleItem(GameObject obj, string groupName)
         {
-            var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting()) ?? new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggle" : ReadGroupToggleMenuNameSetting());
+            var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting()) ?? new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting());
             if (togglesGameObject.transform.parent == null)
             {
                 togglesGameObject.transform.SetParent(obj.transform.parent);
@@ -276,7 +271,6 @@ namespace Editor
 
         private static AnimatorController CreateToggleAnimatorController(string groupName)
         {
-            var layerName = $"Group_{groupName}";
             var controllerPath = $"Assets/Hirami/Toggle/group_toggle_fx.controller";
             
             string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
@@ -367,7 +361,7 @@ namespace Editor
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
-            if (!animatorController.parameters.Any(p => p.name == Md5Hash(groupName)))
+            if (animatorController.parameters.All(p => p.name != Md5Hash(groupName)))
             {
                 animatorController.AddParameter(newParam);
             }
@@ -379,7 +373,7 @@ namespace Editor
                 stateMachine = new AnimatorStateMachine(),
                 defaultWeight = 1f
             };
-            if (!animatorController.layers.Any(l => l.name == Md5Hash(groupName)))
+            if (animatorController.layers.All(l => l.name != Md5Hash(groupName)))
             {
                 AssetDatabase.AddObjectToAsset(newLayer.stateMachine, animatorController);
                 animatorController.AddLayer(newLayer);
@@ -501,31 +495,27 @@ namespace Editor
                 nameHashMapping = new NameHashMapping(); // 새 구조 생성
             }
 
-            // 새 기록 추가
-            NameHashPair newPair = new NameHashPair { originalName = "Group_" + originalName, hashedName = hashedName };
-            nameHashMapping.mappings.Add(newPair);
+            // "Group_" 접두사를 추가하여 원래 이름 구성
+            string groupNameWithPrefix = "Group_" + originalName;
 
-            // JSON 파일 쓰기
-            string newJson = JsonUtility.ToJson(nameHashMapping, true);
-            File.WriteAllText(jsonFilePath, newJson);
-            AssetDatabase.Refresh();
-        }
-
-        
-        private static void CreateFolderIfNotExist(string path)
-        {
-            string[] folders = path.Split('/');
-            string currentPath = "";
-            foreach (string folder in folders)
+            // 중복 검사 및 새 기록 추가
+            if (!nameHashMapping.mappings.Any(pair => pair.originalName == groupNameWithPrefix && pair.hashedName == hashedName))
             {
-                string folderPath = string.IsNullOrEmpty(currentPath) ? folder : $"{currentPath}/{folder}";
-                if (!AssetDatabase.IsValidFolder(folderPath))
-                {
-                    AssetDatabase.CreateFolder(currentPath, folder);
-                }
-                currentPath = folderPath;
+                NameHashPair newPair = new NameHashPair { originalName = groupNameWithPrefix, hashedName = hashedName };
+                nameHashMapping.mappings.Add(newPair);
+
+                // JSON 파일 쓰기
+                string newJson = JsonUtility.ToJson(nameHashMapping, true);
+                File.WriteAllText(jsonFilePath, newJson);
+                AssetDatabase.Refresh();
+            }
+            else
+            {
+                Debug.Log($"Entry for '{groupNameWithPrefix}' with hash '{hashedName}' already exists and will not be duplicated.");
             }
         }
+
+
         
         private static string ReadGroupToggleMenuNameSetting()
         {

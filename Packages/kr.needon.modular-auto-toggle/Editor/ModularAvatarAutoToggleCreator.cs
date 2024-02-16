@@ -12,22 +12,19 @@ using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using static Editor.GroupTogglePrefabCreatorGroups;
 
-//v1.0.7
+//v1.0.64
 namespace Editor
 {
     public abstract class TogglePrefabCreator
     {
         private static AnimatorController _globalFxAnimator;
         private static string _selectGameObejct;
-        private static string TogglePrefabName = ReadToggleMenuNameSetting();
+        private static readonly string TogglePrefabName = ReadToggleMenuNameSetting();
+        private static readonly string JsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
 
         [MenuItem("GameObject/Add Toggle Items", false, 0)]
         private static void CreateToggleItemsInHierarchy()
         {
-            
-            // 폴더 생성
-            string folderPath = "Assets/Hirami/Toggle";
-            CreateFolderIfNotExist(folderPath);
             
             Debug.Log("ToggleName :: " + TogglePrefabName);
 
@@ -54,8 +51,7 @@ namespace Editor
                 }
 
                 EditorUtility.ClearProgressBar();
-                EditorUtility.DisplayDialog("Toggle Items Creation", "All toggle items have been created successfully.\n\n모든 토글 아이템이 성공적으로 생성되었습니다.",
-                    "OK");
+                EditorUtility.DisplayDialog("Toggle Items Creation", "All toggle items have been created successfully.\n\n모든 토글 아이템이 성공적으로 생성되었습니다.", "OK");
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
@@ -102,16 +98,14 @@ namespace Editor
             AssetDatabase.Refresh();
         }
 
+
         private static void WriteHashMappingToJson(string originalName, string hashedName)
         {
-            // JSON 파일 경로
-            string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
-
             // 기존 데이터 로드 또는 새로운 구조 생성
             NameHashMapping nameHashMapping;
-            if (File.Exists(jsonFilePath))
+            if (File.Exists(JsonFilePath))
             {
-                string json = File.ReadAllText(jsonFilePath);
+                string json = File.ReadAllText(JsonFilePath);
                 nameHashMapping = JsonUtility.FromJson<NameHashMapping>(json);
                 if (nameHashMapping == null) // 추가된 검사
                 {
@@ -123,17 +117,23 @@ namespace Editor
                 nameHashMapping = new NameHashMapping(); // 새 구조 생성
             }
 
-            // 새 기록 추가
-            NameHashPair newPair = new NameHashPair { originalName = originalName, hashedName = hashedName };
-            nameHashMapping.mappings.Add(newPair);
+            // 중복 검사 및 새 기록 추가
+            if (!nameHashMapping.mappings.Any(pair => pair.originalName == originalName && pair.hashedName == hashedName))
+            {
+                NameHashPair newPair = new NameHashPair { originalName = originalName, hashedName = hashedName };
+                nameHashMapping.mappings.Add(newPair);
 
-            // JSON 파일 쓰기
-            string newJson = JsonUtility.ToJson(nameHashMapping, true);
-            File.WriteAllText(jsonFilePath, newJson);
-            AssetDatabase.Refresh();
+                // JSON 파일 쓰기
+                string newJson = JsonUtility.ToJson(nameHashMapping, true);
+                File.WriteAllText(JsonFilePath, newJson);
+                AssetDatabase.Refresh();
+            }
+            else
+            {
+                Debug.Log($"Entry for '{originalName}' with hash '{hashedName}' already exists and will not be duplicated.");
+            }
         }
-
-
+        
         private static string Md5Hash(string input)
         { 
             MD5 md5 = MD5.Create();
@@ -151,10 +151,8 @@ namespace Editor
 
         private static void AddComponentsToToggleItem(GameObject obj, string prefabName)
         {
-            var toggleName = "Toggle_" + prefabName;
-
-            var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadToggleMenuNameSetting()) ? "Toggles" : ReadToggleMenuNameSetting()) ??
-                                    new GameObject(string.IsNullOrEmpty(ReadToggleMenuNameSetting()) ? "Toggles" : ReadToggleMenuNameSetting());
+            
+            var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadToggleMenuNameSetting()) ? "Toggles" : ReadToggleMenuNameSetting()) ?? new GameObject(string.IsNullOrEmpty(ReadToggleMenuNameSetting()) ? "Toggles" : ReadToggleMenuNameSetting());
             if (togglesGameObject.transform.parent == null)
             {
                 togglesGameObject.transform.SetParent(obj.transform.parent);
@@ -164,29 +162,36 @@ namespace Editor
             if (mergeAnimator == null)
             {
                 togglesGameObject.AddComponent<ModularAvatarMenuInstaller>();
-                ToglesConfigureSubMenuItem(togglesGameObject);
+                ToggleConfigureSubMenuItem(togglesGameObject);
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
+            
+            RecordState(Md5Hash(prefabName), prefabName, true);
+            RecordState(Md5Hash(prefabName), prefabName, false);
 
-            // MD5 해시된 이름 생성
-            string hashedToggleName = Md5Hash(toggleName);
 
-            RecordState(hashedToggleName, toggleName, true);
-            RecordState(hashedToggleName, toggleName, false);
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
+            var controllerPath = $"Assets/Hirami/Toggle/toggle_fx.controller";
+            
             if (_globalFxAnimator == null)
             {
-                _globalFxAnimator = CreateToggleAnimatorController(hashedToggleName, toggleName);
+                var loadedAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
+                if (loadedAnimator != null)
+                {
+                    UpdateToggleAnimatorController(loadedAnimator, prefabName);
+                    _globalFxAnimator = loadedAnimator;
+                }
+                else
+                {
+                    _globalFxAnimator = CreateToggleAnimatorController(prefabName);
+                }
+
                 mergeAnimator.animator = _globalFxAnimator;
             }
             else
             {
-                UpdateToggleAnimatorController(_globalFxAnimator, hashedToggleName, toggleName);
+                UpdateToggleAnimatorController(_globalFxAnimator, prefabName);
             }
-
+            
             mergeAnimator.animator = _globalFxAnimator;
             mergeAnimator.pathMode = MergeAnimatorPathMode.Absolute;
             mergeAnimator.matchAvatarWriteDefaults = true;
@@ -194,13 +199,15 @@ namespace Editor
 
             obj.AddComponent<ToggleNameChange>();
 
-            ConfigureAvatarParameters(obj, Md5Hash(toggleName));
-            ConfigureMenuItem(obj, Md5Hash(toggleName));
 
+            ConfigureAvatarParameters(obj, Md5Hash(prefabName));
+            ConfigureMenuItem(obj, Md5Hash(prefabName));
+            
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            
         }
-
+        
         private static void ConfigureAvatarParameters(GameObject obj, string parameterName)
         {
             var avatarParameters = obj.AddComponent<ModularAvatarParameters>();
@@ -217,7 +224,7 @@ namespace Editor
             avatarParameters.parameters.Add(newParameter);
         }
 
-        private static void ToglesConfigureSubMenuItem(GameObject obj)
+        private static void ToggleConfigureSubMenuItem(GameObject obj)
         {
             var menuItem = obj.AddComponent<ModularAvatarMenuItem>();
             menuItem.Control = menuItem.Control ?? new VRCExpressionsMenu.Control();
@@ -235,13 +242,11 @@ namespace Editor
             menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = parameterName };
         }
 
-        private static AnimatorController CreateToggleAnimatorController(string toggleItemName, string originalName)
-        {
-            Debug.Log("toggleItemName :: " + toggleItemName);
-            Debug.Log("originalName :: " + originalName);
+        private static AnimatorController CreateToggleAnimatorController(string originalName) {
+        
 
-            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + toggleItemName + "_on.anim";
-            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + toggleItemName + "_off.anim";
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + Md5Hash(originalName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + Md5Hash(originalName) + "_off.anim";
 
             Debug.Log("onToggleAnimePath :: " + onToggleAnimePath);
             Debug.Log("offToggleAnimePath :: " + offToggleAnimePath);
@@ -255,7 +260,7 @@ namespace Editor
                 hideFlags = HideFlags.HideInHierarchy
             };
             AssetDatabase.AddObjectToAsset(stateMachine, animatorController);
-            animatorController.layers = new AnimatorControllerLayer[]
+            animatorController.layers = new[]
             {
                 new AnimatorControllerLayer
                 {
@@ -309,25 +314,24 @@ namespace Editor
             return animatorController;
         }
 
-
-        public static void UpdateToggleAnimatorController(AnimatorController animatorController, string toggleItemName,
-            string originalName)
+        private static void UpdateToggleAnimatorController(AnimatorController animatorController, string toggleItemName)
         {
-            // 새로운 토글의 애니메이션 클립 경로
-            string onClipPath = $"Assets/Hirami/Toggle/Toggle_{toggleItemName}_on.anim";
-            string offClipPath = $"Assets/Hirami/Toggle/Toggle_{toggleItemName}_off.anim";
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + Md5Hash(toggleItemName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + Md5Hash(toggleItemName) + "_off.anim";
             
-            AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onClipPath) ?? new AnimationClip();
-            AnimationClip offClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(offClipPath) ?? new AnimationClip();
+            
+            // 애니메이션 클립 로드 또는 생성
+            AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath) ?? new AnimationClip();
+            AnimationClip offClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath) ?? new AnimationClip();
 
             // 새로운 파라미터 생성 및 추가
             AnimatorControllerParameter newParam = new AnimatorControllerParameter
             {
-                name = Md5Hash(originalName),
+                name = Md5Hash(toggleItemName),
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
-            if (!animatorController.parameters.Any(p => p.name == Md5Hash(originalName)))
+            if (animatorController.parameters.All(p => p.name != Md5Hash(toggleItemName)))
             {
                 animatorController.AddParameter(newParam);
             }
@@ -335,29 +339,28 @@ namespace Editor
             // 새로운 레이어 생성 및 추가
             AnimatorControllerLayer newLayer = new AnimatorControllerLayer
             {
-                name = Md5Hash(originalName),
+                name = Md5Hash(toggleItemName),
                 stateMachine = new AnimatorStateMachine(),
                 defaultWeight = 1f
             };
-            if (!animatorController.layers.Any(l => l.name == Md5Hash(originalName)))
+            if (animatorController.layers.All(l => l.name != Md5Hash(toggleItemName)))
             {
                 AssetDatabase.AddObjectToAsset(newLayer.stateMachine, animatorController);
                 animatorController.AddLayer(newLayer);
             }
 
             // 상태 및 트랜지션 구성
-            ConfigureStateAndTransition(newLayer.stateMachine, onClip, offClip, Md5Hash(originalName));
+            ConfigureStateAndTransition(newLayer.stateMachine, onClip, offClip, Md5Hash(toggleItemName));
 
             // 변경 사항 저장
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            
         }
 
-        private static void ConfigureStateAndTransition(AnimatorStateMachine stateMachine, AnimationClip onClip,
-            AnimationClip offClip, string paramName)
+        private static void ConfigureStateAndTransition(AnimatorStateMachine stateMachine, AnimationClip onClip, AnimationClip offClip, string paramName)
         {
             
-
             bool toggleReverse = ReadToggleReverseSetting();
             AnimatorState onState, offState;
 
@@ -440,7 +443,7 @@ namespace Editor
           
             if (clip != null)
             {
-                WriteHashMappingToJson(originalName, toggleItemName);
+                WriteHashMappingToJson("Toggle_" + originalName, toggleItemName);
             }
 
 
@@ -489,20 +492,17 @@ namespace Editor
             return "";
         }
         
-        private static void CreateFolderIfNotExist(string path)
+        // JSON 파일에서 매핑 로드하는 함수
+        private static NameHashMapping LoadNameHashMapping(string jsonFilePath)
         {
-            string[] folders = path.Split('/');
-            string currentPath = "";
-            foreach (string folder in folders)
+            if (File.Exists(jsonFilePath))
             {
-                string folderPath = string.IsNullOrEmpty(currentPath) ? folder : $"{currentPath}/{folder}";
-                if (!AssetDatabase.IsValidFolder(folderPath))
-                {
-                    AssetDatabase.CreateFolder(currentPath, folder);
-                }
-                currentPath = folderPath;
+                string jsonContent = File.ReadAllText(jsonFilePath);
+                return JsonUtility.FromJson<NameHashMapping>(jsonContent);
             }
+            return null; // 파일이 없으면 null 반환
         }
+
     }
 }
 
@@ -523,42 +523,42 @@ public class NameHashMapping
 
 public class HiramiAssetPostprocessor : AssetPostprocessor
 {
-    static void OnPostprocessAllAssets(
+    private static void OnPostprocessAllAssets(
         string[] importedAssets,
         string[] deletedAssets,
         string[] movedAssets,
         string[] movedFromAssetPaths)
     {
-        string settingJsonFilePath = "Assets/Hirami/Toggle/setting.json"; 
-
+        const string settingJsonFilePath = "Assets/Hirami/Toggle/setting.json"; 
+        const string JsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
+        
+        
         // JSON 파일이 존재하는지 확인
         if (!AssetDatabase.LoadAssetAtPath<TextAsset>(settingJsonFilePath))
         {
-            string jsonData =
-                "{\"toggleReverse\":false, \"toggleMenuName\":\"Toggles\", \"groupToggleMenuName\":\"GroupToggle\"}"; // 생성할 JSON 데이터
-            System.IO.File.WriteAllText(settingJsonFilePath, jsonData); 
+            var jsonData =
+                "{\"toggleReverse\":false, \"toggleMenuName\":\"Toggles\", \"groupToggleMenuName\":\"GroupToggles\"}"; // 생성할 JSON 데이터
+            File.WriteAllText(settingJsonFilePath, jsonData); 
             AssetDatabase.ImportAsset(settingJsonFilePath);
         }
 
         // JSON 파일 경로
-        string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
+        
 
         // JSON 파일이 없으면 생성
-        if (!File.Exists(jsonFilePath))
+        if (!File.Exists(JsonFilePath))
         {
-            File.WriteAllText(jsonFilePath, "{\"mappings\":[]}");
+            File.WriteAllText(JsonFilePath, "{\"mappings\":[]}");
         }
 
-        string controllerPath = "Assets/Hirami/Toggle/toogle_fx.controller"; // "toogle" -> "toggle"로 오타 수정
+        var controllerPath = "Assets/Hirami/Toggle/toogle_fx.controller"; // "toogle" -> "toggle"로 오타 수정
 
 
-        if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(controllerPath) != null)
-        {
-            string newControllerName = "toggle_fx.controller";
-            AssetDatabase.RenameAsset(controllerPath, newControllerName);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-        }
+        if (AssetDatabase.LoadAssetAtPath<Object>(controllerPath) == null) return;
+        const string newControllerName = "toggle_fx.controller";
+        AssetDatabase.RenameAsset(controllerPath, newControllerName);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
     }
 }
 
