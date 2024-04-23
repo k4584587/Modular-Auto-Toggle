@@ -4,14 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using kr.needon.modular_auto_toggle.runtime.GroupToggleNameChange;
 using nadena.dev.modular_avatar.core;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-//v1.0.64
+//v1.0.66
 namespace Editor
 {
     public abstract class GroupTogglePrefabCreatorGroups
@@ -22,6 +21,26 @@ namespace Editor
         private static void CreateGroupToggleItems()
         {
             var selectedObjects = Selection.gameObjects;
+            
+            var targetFolderPath = "Assets/Hirami/Toggle";
+            if (!AssetDatabase.IsValidFolder(targetFolderPath)) //폴더 생성이 안될때 생성하는 함수
+            {
+                string[] folders = targetFolderPath.Split('/');
+                string parentFolder = folders[0];
+
+
+                for (int i = 1; i < folders.Length; i++)
+                {
+                    string folderPath = parentFolder + "/" + folders[i];
+                    if (!AssetDatabase.IsValidFolder(folderPath))
+                    {
+                        AssetDatabase.CreateFolder(parentFolder, folders[i]);
+                        Debug.Log(folderPath + " folder has been created.");
+                    }
+
+                    parentFolder = folderPath;
+                }
+            }
             
             if (Selection.gameObjects.Length == 0)
             {
@@ -185,7 +204,9 @@ namespace Editor
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
 
-            var controllerPath = $"Assets/Hirami/Toggle/group_toggle_fx.controller";
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            Debug.Log("Root Object Name: " + rootObject.name);
+            var controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_group_toggle_fx.controller";
 
             if (_globalFxAnimator == null)
             {
@@ -212,9 +233,6 @@ namespace Editor
             mergeAnimator.pathMode = MergeAnimatorPathMode.Absolute;
             mergeAnimator.matchAvatarWriteDefaults = true;
             mergeAnimator.deleteAttachedAnimator = true;
-
-            obj.AddComponent<GroupToggleNameChange>();
-
 
             ConfigureAvatarParameters(obj, Md5Hash(groupName));
             ConfigureMenuItem(obj, Md5Hash(groupName));
@@ -271,7 +289,8 @@ namespace Editor
 
         private static AnimatorController CreateToggleAnimatorController(string groupName)
         {
-            var controllerPath = $"Assets/Hirami/Toggle/group_toggle_fx.controller";
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            var controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_group_toggle_fx.controller";
             
             string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
             string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_off.anim";

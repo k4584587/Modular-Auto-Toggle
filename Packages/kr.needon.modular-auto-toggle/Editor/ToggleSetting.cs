@@ -3,15 +3,15 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.64
+//v1.0.66
 namespace Editor
 {
     public class ToggleSetting : EditorWindow
     {
-        private bool toggleReverse = false;
-        private string toggleMenuName = "Toggles"; 
-        private string groupToggleMenuName = "GroupToggles";
-        private static string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
+        private bool _toggleReverse;
+        private string _toggleMenuName = "Toggles"; 
+        private string _groupToggleMenuName = "GroupToggles";
+        private const string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
 
         [MenuItem("Hirami/Auto Toggle/Toggle Setting", false, 0)]
         private static void Init()
@@ -28,13 +28,13 @@ namespace Editor
             GUILayout.Space(10);
 
             // 텍스트 입력 필드 추가
-            toggleMenuName = EditorGUILayout.TextField("Toggle Menu Name", toggleMenuName);
+            _toggleMenuName = EditorGUILayout.TextField("Toggle Menu Name", _toggleMenuName);
             GUILayout.Space(10);
-            groupToggleMenuName = EditorGUILayout.TextField("GroupToggle Menu Name", groupToggleMenuName);
+            _groupToggleMenuName = EditorGUILayout.TextField("GroupToggle Menu Name", _groupToggleMenuName);
 
             GUILayout.Space(10);
 
-            toggleReverse = EditorGUILayout.Toggle("토글 반전 (Toggle Reverse) ", toggleReverse);
+            _toggleReverse = EditorGUILayout.Toggle("토글 반전 (Toggle Reverse) ", _toggleReverse);
 
             GUILayout.Space(10);
 
@@ -72,9 +72,9 @@ namespace Editor
                 AssetDatabase.Refresh();
 
                 // 사용자 인터페이스에도 기본값 설정
-                toggleReverse = false;
-                toggleMenuName = "Toggles";
-                groupToggleMenuName = "GroupToggles";
+                _toggleReverse = false;
+                _toggleMenuName = "Toggles";
+                _groupToggleMenuName = "GroupToggles";
 
                 // 사용자에게 적용됐음을 알림
                 EditorUtility.DisplayDialog("Reset Settings / 설정 초기화", "Settings have been reset to default values.\n설정이 기본값으로 재설정되었습니다.", "OK");
@@ -100,9 +100,9 @@ namespace Editor
             {
                 string json = File.ReadAllText(jsonFilePath);
                 ToggleData data = JsonUtility.FromJson<ToggleData>(json);
-                toggleReverse = data.toggleReverse;
-                toggleMenuName = data.toggleMenuName;
-                groupToggleMenuName = data.groupToggleMenuName;
+                _toggleReverse = data.toggleReverse;
+                _toggleMenuName = data.toggleMenuName;
+                _groupToggleMenuName = data.groupToggleMenuName;
             }
         }
 
@@ -110,9 +110,9 @@ namespace Editor
         {
             ToggleData data = new ToggleData();
             
-            data.toggleReverse = toggleReverse;
-            data.toggleMenuName = toggleMenuName;
-            data.groupToggleMenuName = groupToggleMenuName;
+            data.toggleReverse = _toggleReverse;
+            data.toggleMenuName = _toggleMenuName;
+            data.groupToggleMenuName = _groupToggleMenuName;
             
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(jsonFilePath, json);
