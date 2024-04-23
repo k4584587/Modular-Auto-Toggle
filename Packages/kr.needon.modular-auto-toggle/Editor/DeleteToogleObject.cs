@@ -1,22 +1,21 @@
 #if UNITY_EDITOR
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using nadena.dev.modular_avatar.core;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
-using static Editor.GroupTogglePrefabCreatorGroups;
 
-//v1.0.7
+//v1.0.66
 namespace Editor
 {
     public class DeleteToggleObjects : EditorWindow
     {
-        private VRCAvatarDescriptor avatarDescriptor;
-        private Vector2 scrollPosToggle;
-        private Vector2 scrollPosGroupToggle;
+        private VRCAvatarDescriptor _avatarDescriptor;
+        private Vector2 _scrollPosToggle;
+        private Vector2 _scrollPosGroupToggle;
         private Dictionary<string, bool> togglesToDelete = new Dictionary<string, bool>();
         private Dictionary<string, bool> groupTogglesToDelete = new Dictionary<string, bool>();
         private List<string> warnedNames = new List<string>(); 
@@ -37,9 +36,9 @@ namespace Editor
         private void OnGUI()
         {
             EditorGUILayout.BeginVertical(GUI.skin.window);
-            avatarDescriptor = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Avatar", avatarDescriptor, typeof(VRCAvatarDescriptor), true);
+            _avatarDescriptor = (VRCAvatarDescriptor)EditorGUILayout.ObjectField("Avatar", _avatarDescriptor, typeof(VRCAvatarDescriptor), true);
 
-            if (avatarDescriptor != null)
+            if (_avatarDescriptor != null)
             {
                 LoadToggles();
                 EditorGUILayout.Space(2);
@@ -48,7 +47,7 @@ namespace Editor
 
                 EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.MaxWidth(295), GUILayout.ExpandHeight(true));
                 EditorGUILayout.LabelField(ReadToggleMenuNameSetting(), EditorStyles.boldLabel);
-                scrollPosToggle = EditorGUILayout.BeginScrollView(scrollPosToggle, GUILayout.ExpandHeight(true));
+                _scrollPosToggle = EditorGUILayout.BeginScrollView(_scrollPosToggle, GUILayout.ExpandHeight(true));
                 foreach (var toggleName in new List<string>(togglesToDelete.Keys))
                 {
                     bool currentState = EditorGUILayout.ToggleLeft(toggleName, togglesToDelete[toggleName]);
@@ -63,7 +62,7 @@ namespace Editor
 
                 EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.MaxWidth(295), GUILayout.ExpandHeight(true));
                 EditorGUILayout.LabelField(ReadGroupToggleMenuNameSetting(), EditorStyles.boldLabel);
-                scrollPosGroupToggle = EditorGUILayout.BeginScrollView(scrollPosGroupToggle, GUILayout.ExpandHeight(true));
+                _scrollPosGroupToggle = EditorGUILayout.BeginScrollView(_scrollPosGroupToggle, GUILayout.ExpandHeight(true));
                 foreach (var groupToggleName in new List<string>(groupTogglesToDelete.Keys))
                 {EditorGUILayout.BeginHorizontal();
                     bool currentState = EditorGUILayout.ToggleLeft(groupToggleName, groupTogglesToDelete[groupToggleName]);
@@ -94,11 +93,7 @@ namespace Editor
             EditorGUILayout.EndVertical();
             Repaint();
         }
-
-        private void TestBtn(object toggleName)
-        {
-            throw new NotImplementedException();
-        }
+        
 
         private void AllDeleteToggle()
         {
@@ -108,7 +103,7 @@ namespace Editor
                                             "No"))
             {
                 
-                Transform togglesParent = avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
+                Transform togglesParent = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
                 if (togglesParent != null)
                 {
                     foreach (Transform child in togglesParent)
@@ -118,7 +113,7 @@ namespace Editor
                     DestroyImmediate(togglesParent.gameObject);
                 }
                 
-                Transform groupTogglesParent = avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
+                Transform groupTogglesParent = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
                 if (groupTogglesParent != null)
                 {
                     foreach (Transform child in groupTogglesParent)
@@ -141,7 +136,7 @@ namespace Editor
             togglesToDelete.Clear();
             groupTogglesToDelete.Clear();
 
-            Transform togglesParent = avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
+            Transform togglesParent = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
             if (togglesParent != null)
             {
                 foreach (Transform child in togglesParent)
@@ -163,7 +158,7 @@ namespace Editor
             }
 
             // GroupToggle 부분에 대한 처리도 동일하게 적용합니다.
-            Transform groupTogglesParent = avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
+            Transform groupTogglesParent = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
             if (groupTogglesParent != null)
             {
                 foreach (Transform child in groupTogglesParent)
@@ -195,7 +190,7 @@ namespace Editor
                 foreach (string file in files)
                 {
                     string fileName = System.IO.Path.GetFileName(file);
-                    if (fileName != "setting.json" && System.IO.Path.GetExtension(file) != ".meta")
+                    if (fileName != "setting.json" && System.IO.Path.GetExtension(file) != ".meta") //setting.json 파일은 남겨두고 삭제하기
                     {
                         AssetDatabase.DeleteAsset(file);
                     }
@@ -226,6 +221,8 @@ namespace Editor
         {
             bool togglesRemoved = false;
             bool groupTogglesRemoved = false;
+            
+            
 
             if (EditorUtility.DisplayDialog("Delete Confirmation",
                                             "Are you sure you want to delete the selected toggles and their animations?",
@@ -234,41 +231,81 @@ namespace Editor
             {
                 foreach (var toggleName in togglesToDelete)
                 {
+                    
+                    
                     if (toggleName.Value)
                     {
-                        var toggleObj = avatarDescriptor.transform.Find(ReadToggleMenuNameSetting() + "/" + toggleName.Key);
+                        
+                        Debug.Log("toggleName.Value :: " + toggleName.Key);
+                        var toggleObj = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting() + "/" + toggleName.Key);
+                        var rootObject = toggleObj.transform.root.gameObject;
+
                         if (toggleObj != null)
                         {
-                            if (!toggleObj.name.StartsWith("Toggle_"))
+                            
+                            ModularAvatarParameters maParams = toggleObj.GetComponent<ModularAvatarParameters>();
+                            if (maParams != null)
                             {
-                                toggleObj.name = "Toggle_" + toggleObj.name;
+                                
+                                // 컴포넌트에서 정보를 가져오는 로직
+                                var paramName = maParams.parameters; 
+
+                                foreach (var paramConfig in maParams.parameters)
+                                {
+                                    
+                                    var toggleGuidParamName = paramConfig.nameOrPrefix;
+                                    
+                                    string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle").Replace("_off.anim", "");
+                                    
+                                    if (!string.IsNullOrEmpty(fullPath))
+                                    {
+                                        Debug.Log("File found: " + fullPath);
+                                        DeleteAnimationFiles(toggleName.Key, "" + rootObject.name + "_toggle_fx", "toggle", fullPath, toggleGuidParamName);
+                                        DestroyImmediate(toggleObj.gameObject);
+                                        DeleteToggleState(toggleName.Key);
+                                        togglesRemoved = true;
+                                        AssetDatabase.Refresh();
+                                    }
+                                    else
+                                    {
+                                        Debug.Log("File not found.");
+                                    }
+                                    
+                                }
+
                             }
-                            Debug.Log("toggleObj.gameObject.name :: " + toggleObj.gameObject.name);
-                            GetHashedNameFromOriginalName(toggleObj.gameObject.name);
-                            DestroyImmediate(toggleObj.gameObject);
-                            togglesRemoved = true;
-                            DeleteAnimationFiles(toggleName.Key, "toggle_fx", "toggle");
-                            DeleteToggleState(toggleName.Key);
-                            AssetDatabase.Refresh();
+
                         }
                     }
                 }
 
                 foreach (var groupToggleName in groupTogglesToDelete)
                 {
+                    
                     if (groupToggleName.Value)
                     {
-                        var groupToggleObj = avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting() + "/" + groupToggleName.Key);
+                        var groupToggleObj = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting() + "/" + groupToggleName.Key);
                         if (groupToggleObj != null)
                         {
-                            if (!groupToggleObj.name.StartsWith("Group_"))
+                           
+                            var rootObject = groupToggleObj.transform.root.gameObject;      
+                            
+                            ModularAvatarParameters maParams = groupToggleObj.GetComponent<ModularAvatarParameters>(); //group Toggle 오브젝트 모듈러 컴포넌트 정보 가져오기
+                            if (maParams != null)
                             {
-                                groupToggleObj.name = "Group_" + groupToggleObj.name;
+                                
+                                var paramName = maParams.parameters;
+                                foreach (var paramConfig in maParams.parameters)
+                                {
+                                    var toggleGuidParamName = paramConfig.nameOrPrefix;
+                                    string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle").Replace("_off.anim", "");
+                                    DeleteAnimationFiles(groupToggleName.Key, "" + rootObject.name + "_group_toggle_fx", "group", fullPath, toggleGuidParamName);
+                                    DestroyImmediate(groupToggleObj.gameObject);
+                                    groupTogglesRemoved = true;
+                                    AssetDatabase.Refresh();
+                                    
+                                }
                             }
-                            DestroyImmediate(groupToggleObj.gameObject);
-                            groupTogglesRemoved = true;
-                            DeleteAnimationFiles(groupToggleName.Key, "group_toggle_fx", "Group");
-                            AssetDatabase.Refresh();
                         }
                     }
                 }
@@ -280,38 +317,29 @@ namespace Editor
             }
         }
 
-        private void DeleteAnimationFiles(string toggleName, string controllerType, string type)
+        //애니메이션 파일 삭제
+        private void DeleteAnimationFiles(string toggleName, string controllerType, string type, string animePath, string hashName)
         {
-            if (type.Equals("Group"))
+            
+            Debug.Log("DeleteAnimationFiles toggleName :: " + toggleName);
+            Debug.Log("DeleteAnimationFiles controllerType :: " + controllerType);
+            Debug.Log("DeleteAnimationFiles type :: " + type);
+            Debug.Log("DeleteAnimationFiles toggleName :: " + animePath);
+            
+            if (type.Equals("group"))
             {
-
-                if (!toggleName.StartsWith("Group_"))
-                {
-                    toggleName = "Group_" + toggleName;
-                }
-                NameHashMapping nameHashMapping = ReadHashMappingFromJson();
-
-                string hashedToggleName = nameHashMapping.mappings
-                    .FirstOrDefault(pair => pair.originalName.Equals(toggleName, StringComparison.OrdinalIgnoreCase))?.hashedName;
-
-                if (!string.IsNullOrEmpty(hashedToggleName))
-                {
-                    string pathToAnimations = $"Assets/Hirami/Toggle/";
-                    string animationFileOn = $"Group_{hashedToggleName}_on.anim";
-                    string animationFileOff = $"Group_{hashedToggleName}_off.anim";
+               
+                    string animationFileOn = $"" + animePath + "_on.anim";
+                    string animationFileOff = $"" + animePath + "_off.anim";
+                    
+              
                     string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
-
-                    DeleteAssetIfItExists(pathToAnimations + animationFileOn);
-                    DeleteAssetIfItExists(pathToAnimations + animationFileOff);
-
-                    DeleteStatesAndParametersFromAnimator(animatorControllerPath, GetHashedNameFromOriginalName(toggleName));
-                    RemoveMappingFromJson(toggleName);
-
-                }
-                else
-                {
-                    Debug.LogWarning("Hashed name for toggle '" + toggleName + "' not found in JSON.");
-                }
+                    
+                    
+                    DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "group");
+                    DeleteAssetIfItExists(animationFileOn);
+                    DeleteAssetIfItExists(animationFileOff);
+                    
             }
             else
             {
@@ -320,40 +348,36 @@ namespace Editor
                     toggleName = "Toggle_" + toggleName;
                 }
 
-                NameHashMapping nameHashMapping = ReadHashMappingFromJson();
+                Debug.Log("Delete toggleName :: " + toggleName);
 
-                string hashedToggleName = nameHashMapping.mappings
-                    .FirstOrDefault(pair => pair.originalName.Equals(toggleName, StringComparison.OrdinalIgnoreCase))?.hashedName;
+                //string pathToAnimations = $"Assets/Hirami/Toggle/";
+                string animationFileOn = $"" + animePath + "_on.anim";
+                string animationFileOff = $"" + animePath + "_off.anim";
+                
 
-   
+                Debug.Log("Delete animationFileOn :: " + animationFileOn);
 
-                if (!string.IsNullOrEmpty(hashedToggleName))
-                {
-                    string pathToAnimations = $"Assets/Hirami/Toggle/";
-                    string animationFileOn = $"Toggle_{hashedToggleName}_on.anim";
-                    string animationFileOff = $"Toggle_{hashedToggleName}_off.anim";
-                    string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
+                string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
+                DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "toggle");
+                DeleteAssetIfItExists(animationFileOn);
+                DeleteAssetIfItExists(animationFileOff);
 
-                    DeleteAssetIfItExists(pathToAnimations + animationFileOn);
-                    DeleteAssetIfItExists(pathToAnimations + animationFileOff);
-
-                    DeleteStatesAndParametersFromAnimator(animatorControllerPath, GetHashedNameFromOriginalName(toggleName));
-                    RemoveMappingFromJson(toggleName);
-
-                }
-                else
-                {
-                    Debug.LogWarning("Hashed name for toggle '" + toggleName + "' not found in JSON.");
-                }
+               
             }
         }
 
 
-        private void DeleteStatesAndParametersFromAnimator(string controllerPath, string toggleName)
+        //fx 개별로 지우는 함수
+        private void DeleteStatesAndParametersFromAnimator(string controllerPath, string toggleName, string originalToggleName, string type)
         {
 
-            Debug.Log("DeleteStatesAndParametersFromAnimator :: " + toggleName);
+            Debug.Log("DeleteStatesAndParametersFromAnimator :: " + originalToggleName);
+            Debug.Log("DeleteStatesAndParametersFromAnimator originalToggleName :: " + originalToggleName);
             AnimatorController animatorController = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
+
+
+      
+            
             if (animatorController != null)
             {
                 for (int i = 0; i < animatorController.layers.Length; i++)
@@ -400,50 +424,7 @@ namespace Editor
             EditorPrefs.DeleteKey("DeleteToggleObjects_" + key);
         }
 
-        private NameHashMapping ReadHashMappingFromJson()
-        {
-            string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
-            if (File.Exists(jsonFilePath))
-            {
-                string json = File.ReadAllText(jsonFilePath);
-                NameHashMapping nameHashMapping = JsonUtility.FromJson<NameHashMapping>(json);
-
-                foreach (var mapping in nameHashMapping.mappings)
-                {
-                    Debug.Log($"Original: {mapping.originalName}, Hashed: {mapping.hashedName}");
-                }
-
-                return nameHashMapping;
-            }
-            return new NameHashMapping { mappings = new List<NameHashPair>() };
-        }
-
-        private void RemoveMappingFromJson(string toggleName)
-        {
-
-            string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
-            if (File.Exists(jsonFilePath))
-            {
-                string json = File.ReadAllText(jsonFilePath);
-                NameHashMapping nameHashMapping = JsonUtility.FromJson<NameHashMapping>(json);
-
-                nameHashMapping.mappings.RemoveAll(mapping => mapping.originalName == toggleName);
-
-                // prettyPrint를 true로 설정하여 JSON을 정돈된 형식으로 저장
-                string updatedJson = JsonUtility.ToJson(nameHashMapping, true);
-                File.WriteAllText(jsonFilePath, updatedJson);
-                AssetDatabase.Refresh();
-
-                foreach (var mapping in nameHashMapping.mappings)
-                {
-                    Debug.Log($"Original: {mapping.originalName}, Hashed: {mapping.hashedName}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("JSON file not found: " + jsonFilePath);
-            }
-        }
+        
         
         private static string ReadToggleMenuNameSetting()
         {
@@ -471,29 +452,18 @@ namespace Editor
             return "";
         }
 
-        private static string GetHashedNameFromOriginalName(string originalName)
+        
+        public static string FindFileByGuid(string guid, string searchFolder)
         {
-            string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
-            if (File.Exists(jsonFilePath))
-            {
-                string json = File.ReadAllText(jsonFilePath);
-                NameHashMapping nameHashMapping = JsonUtility.FromJson<NameHashMapping>(json);
+            // Assets 폴더 내에서 모든 파일의 경로를 가져옵니다.
+            var allFiles = Directory.GetFiles(searchFolder, "*", SearchOption.AllDirectories);
 
-                foreach (var mapping in nameHashMapping.mappings)
-                {
-                    if (mapping.originalName.Equals(originalName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Debug.Log("hashedName :: " + mapping.hashedName);
-                        return mapping.hashedName;
-                    }
-                }
-            }
-            else
-            {
-                Debug.LogWarning("JSON file not found: " + jsonFilePath);
-            }
+            // 해당 GUID를 포함하는 파일을 찾습니다.
+            var fileWithGuid = allFiles.FirstOrDefault(file => Path.GetFileNameWithoutExtension(file).Contains(guid));
 
-            return null;
+            // 전체 파일 이름을 반환합니다 (경로 포함).
+            // 파일을 찾지 못한 경우 null을 반환합니다.
+            return fileWithGuid;
         }
 
 
