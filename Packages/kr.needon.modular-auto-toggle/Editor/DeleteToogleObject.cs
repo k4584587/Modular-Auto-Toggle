@@ -8,7 +8,7 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
 
-//v1.0.66
+//v1.0.67
 namespace Editor
 {
     public class DeleteToggleObjects : EditorWindow
