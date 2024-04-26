@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.66
+//v1.0.67
 namespace Editor
 {
     public class ToggleSetting : EditorWindow

@@ -11,7 +11,7 @@ using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using static Editor.GroupTogglePrefabCreatorGroups;
 
-//v1.0.66
+//v1.0.67
 namespace Editor
 {
     public abstract class TogglePrefabCreator
@@ -106,7 +106,7 @@ namespace Editor
                 togglesGameObject.transform.SetParent(rootGameObject.transform, false);
             }
 
-            var toggleName = "Toggle_" + selectedPrefab.name;
+            var toggleName = "Toggle_" + selectedPrefab.name; //파라미터 이름 설정
             var newToggleGameObject = new GameObject(toggleName);
             newToggleGameObject.transform.SetParent(togglesGameObject.transform, false);
 
@@ -148,11 +148,12 @@ namespace Editor
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
             
-            RecordState(prefabName +"_" + Md5Hash(prefabName), prefabName, true);
-            RecordState(prefabName +"_" +Md5Hash(prefabName), prefabName, false);
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
+            RecordState(rootObject.name + "_" + prefabName +"_" +  Md5Hash(rootObject.name + "_" + prefabName), prefabName, true);
+            RecordState(rootObject.name + "_" + prefabName +"_" +  Md5Hash(rootObject.name + "_" + prefabName), prefabName, false);
 
             
-            var rootObject = Selection.activeGameObject.transform.root.gameObject;
             Debug.Log("Root Object Name: " + rootObject.name);
 
             string controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_toggle_fx.controller";
@@ -183,8 +184,8 @@ namespace Editor
             mergeAnimator.deleteAttachedAnimator = true;
             
 
-            ConfigureAvatarParameters(obj, Md5Hash(prefabName));
-            ConfigureMenuItem(obj, Md5Hash(prefabName), prefabName);
+            ConfigureAvatarParameters(rootObject, obj, Md5Hash(rootObject.name + "_" + prefabName));
+            ConfigureMenuItem(obj, Md5Hash(rootObject.name + "_" + prefabName), prefabName);
             
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -193,7 +194,7 @@ namespace Editor
         
         
         //모듈러 아바타 파라미터 설정
-        private static void ConfigureAvatarParameters(GameObject obj, string parameterName)
+        private static void ConfigureAvatarParameters(GameObject rootObject, GameObject obj, string parameterName)
         {
             var avatarParameters = obj.AddComponent<ModularAvatarParameters>();
             var parameterExists = avatarParameters.parameters.Any(p => p.nameOrPrefix == parameterName);
@@ -201,7 +202,7 @@ namespace Editor
             if (parameterExists) return;
             var newParameter = new ParameterConfig
             {
-                nameOrPrefix =  obj.name + "_" + parameterName,
+                nameOrPrefix =  "Toggle_" + rootObject.name + "_" + obj.name.Replace("Toggle_" , "") + "_" +  parameterName,
                 syncType = ParameterSyncType.Bool,
                 defaultValue = 1,
                 saved = true
@@ -220,24 +221,28 @@ namespace Editor
 
         private static void ConfigureMenuItem(GameObject obj, string parameterName, string originalName)
         {
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
             var menuItem = obj.AddComponent<ModularAvatarMenuItem>();
             menuItem.Control = menuItem.Control ?? new VRCExpressionsMenu.Control();
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.Toggle;
-            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = "Toggle_" + originalName + "_" + parameterName };
+            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = "Toggle_" + rootObject.name + "_" + originalName + "_" + parameterName }; //모듈러 파라미터 이름 설정
         }
 
         private static AnimatorController CreateToggleAnimatorController(string originalName) {
             
             Debug.Log("originalName ::" + originalName);
             
-            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_{originalName}_{Md5Hash(originalName)}_on.anim";
-            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_{originalName}_{Md5Hash(originalName)}_off.anim";
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
+            
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_{rootObject.name}_{originalName}_{Md5Hash(rootObject.name + "_" + originalName)}_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_{rootObject.name}_{originalName}_{Md5Hash(rootObject.name + "_" + originalName)}_off.anim";
 
             Debug.Log("onToggleAnimePath :: " + onToggleAnimePath);
             Debug.Log("offToggleAnimePath :: " + offToggleAnimePath);
             
-            var rootObject = Selection.activeGameObject.transform.root.gameObject;
             Debug.Log("Root Object Name: " + rootObject.name); 
 
             string controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_toggle_fx.controller";
@@ -246,7 +251,7 @@ namespace Editor
 
             AnimatorStateMachine stateMachine = new AnimatorStateMachine
             {
-                name = "Toggle_" + originalName + "_" + Md5Hash(originalName),
+                name = "Toggle_" + rootObject.name + "_" + originalName + "_" + Md5Hash(rootObject.name + "_" + originalName), //파라미터 이름 설정
                 hideFlags = HideFlags.HideInHierarchy
             };
             AssetDatabase.AddObjectToAsset(stateMachine, animatorController);
@@ -254,7 +259,7 @@ namespace Editor
             {
                 new AnimatorControllerLayer
                 {
-                    name = "Toggle_" + originalName + "_" + Md5Hash(originalName),
+                    name = "Toggle_" + rootObject.name + "_" + originalName + "_" + Md5Hash(rootObject.name + "_" + originalName),
                     stateMachine = stateMachine,
                     defaultWeight = 1f
                 }
@@ -262,7 +267,7 @@ namespace Editor
 
             AnimatorControllerParameter parameter = new AnimatorControllerParameter
             {
-                name = "Toggle_" + originalName + "_" + Md5Hash(originalName),
+                name = "Toggle_" + rootObject.name + "_" + originalName + "_" + Md5Hash(rootObject.name + "_" + originalName), //파라미터 이름 설정
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
@@ -284,7 +289,7 @@ namespace Editor
             AnimatorConditionMode conditionModeForSecond = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
             AnimatorConditionMode conditionModeForFirst = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
 
-            string paramName = "Toggle_" + originalName + "_" + Md5Hash(originalName);
+            string paramName = "Toggle_" + rootObject.name + "_" + originalName + "_" + Md5Hash(rootObject.name + "_" + originalName); //파라미터 이름 설정
             
             AnimatorStateTransition transitionToSecond = firstState.AddTransition(secondState);
             transitionToSecond.hasExitTime = false;
@@ -308,8 +313,11 @@ namespace Editor
 
         private static void UpdateToggleAnimatorController(AnimatorController animatorController, string toggleItemName)
         {
-            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + toggleItemName + "_" + Md5Hash(toggleItemName) + "_on.anim";
-            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + toggleItemName + "_" + Md5Hash(toggleItemName) + "_off.anim";
+            
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + rootObject.name + "_" + toggleItemName + "_" + Md5Hash(rootObject.name + "_" + toggleItemName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Toggle_" + rootObject.name + "_" + toggleItemName + "_" + Md5Hash(rootObject.name + "_" + toggleItemName) + "_off.anim";
             
             
             // 애니메이션 클립 로드 또는 생성
@@ -319,11 +327,11 @@ namespace Editor
             // 새로운 파라미터 생성 및 추가
             AnimatorControllerParameter newParam = new AnimatorControllerParameter
             {
-                name = "Toggle_" + toggleItemName + "_" + Md5Hash(toggleItemName),
+                name = "Toggle_" + rootObject.name + "_" + toggleItemName + "_" + Md5Hash(rootObject.name + "_" + toggleItemName),
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
-            if (animatorController.parameters.All(p => p.name != Md5Hash(toggleItemName)))
+            if (animatorController.parameters.All(p => p.name != Md5Hash(rootObject.name + "_" + toggleItemName)))
             {
                 animatorController.AddParameter(newParam);
             }
@@ -331,11 +339,11 @@ namespace Editor
             // 새로운 레이어 생성 및 추가
             AnimatorControllerLayer newLayer = new AnimatorControllerLayer
             {
-                name = "Toggle_" + toggleItemName + "_" + Md5Hash(toggleItemName),
+                name = "Toggle_" + rootObject.name + "_" + toggleItemName + "_" + Md5Hash(rootObject.name + "_" + toggleItemName),
                 stateMachine = new AnimatorStateMachine(),
                 defaultWeight = 1f
             };
-            if (animatorController.layers.All(l => l.name != Md5Hash(toggleItemName)))
+            if (animatorController.layers.All(l => l.name != Md5Hash(rootObject.name + "_" + toggleItemName)))
             {
                 AssetDatabase.AddObjectToAsset(newLayer.stateMachine, animatorController);
                 animatorController.AddLayer(newLayer);
@@ -351,8 +359,9 @@ namespace Editor
         }
 
         private static void ConfigureStateAndTransition(AnimatorStateMachine stateMachine, AnimationClip onClip, AnimationClip offClip, string paramName)
-         {
-            
+        {
+             
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
             bool toggleReverse = ReadToggleReverseSetting();
             AnimatorState onState, offState;
 
@@ -368,7 +377,7 @@ namespace Editor
             AnimatorStateTransition toOnTransition;
             AnimatorStateTransition toOffTransition;
             
-            string paramName_ = "Toggle_" + paramName + "_" + Md5Hash(paramName);
+            string paramName_ = "Toggle_" + rootObject.name + "_" + paramName + "_" + Md5Hash(rootObject.name + "_" +paramName);
 
             if (toggleReverse)
             {

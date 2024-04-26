@@ -10,7 +10,7 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-//v1.0.66
+//v1.0.67
 namespace Editor
 {
     public abstract class GroupTogglePrefabCreatorGroups
@@ -76,16 +76,14 @@ namespace Editor
                     // 'on' 상태 녹화
                     do
                     {
-                        UpdateProgressBar(++currentStep, totalSteps,
-                            $"Recording 'on' state for {selectedObject.name}...");
+                        UpdateProgressBar(++currentStep, totalSteps, $"Recording 'on' state for {selectedObject.name}...");
                         recordedSuccessfully = RecordStateForGroup(groupName, selectedObjects, true);
                     } while (!recordedSuccessfully);
 
                     // 'off' 상태 녹화
                     do
                     {
-                        UpdateProgressBar(++currentStep, totalSteps,
-                            $"Recording 'off' state for {selectedObject.name}...");
+                        UpdateProgressBar(++currentStep, totalSteps, $"Recording 'off' state for {selectedObject.name}...");
                         recordedSuccessfully = RecordStateForGroup(groupName, selectedObjects, false);
                     } while (!recordedSuccessfully);
                 }
@@ -113,9 +111,11 @@ namespace Editor
 
         private static bool RecordStateForGroup(string groupName, GameObject[] selectedObjects, bool activation)
         {
-            var hashedGroupName = Md5Hash(groupName); // 그룹 이름을 해시하여 사용
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
+            var hashedGroupName = Md5Hash(rootObject.name + "_" + groupName); // 그룹 이름을 해시하여 사용
             var stateName = activation ? "on" : "off";
-            var clipName = $"Group_{hashedGroupName}_{stateName}"; // 해시된 그룹 이름을 파일 이름에 사용
+            var clipName = $"Group_{rootObject.name}_{hashedGroupName}_{stateName}"; // 해시된 그룹 이름을 파일 이름에 사용
             var folderPath = "Assets/Hirami/Toggle";
             var fullPath = $"{folderPath}/{clipName}.anim";
 
@@ -147,9 +147,6 @@ namespace Editor
                 var curve = new AnimationCurve(new Keyframe(0f, activation ? 1f : 0f));
                 AnimationUtility.SetEditorCurve(clip, curveBinding, curve);
             }
-
-            // JSON 파일에 기록을 남깁니다.
-            WriteHashMappingToJson(groupName, hashedGroupName);
 
             EditorUtility.SetDirty(clip);
             AssetDatabase.SaveAssets();
@@ -190,6 +187,9 @@ namespace Editor
 
         private static void AddComponentsToToggleItem(GameObject obj, string groupName)
         {
+            
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
             var togglesGameObject = GameObject.Find(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting()) ?? new GameObject(string.IsNullOrEmpty(ReadGroupToggleMenuNameSetting()) ? "GroupToggles" : ReadGroupToggleMenuNameSetting());
             if (togglesGameObject.transform.parent == null)
             {
@@ -204,7 +204,6 @@ namespace Editor
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
 
-            var rootObject = Selection.activeGameObject.transform.root.gameObject;
             Debug.Log("Root Object Name: " + rootObject.name);
             var controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_group_toggle_fx.controller";
 
@@ -213,7 +212,7 @@ namespace Editor
                 var loadedAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
                 if (loadedAnimator != null)
                 {
-                    UpdateToggleAnimatorController(loadedAnimator, groupName);
+                    UpdateToggleAnimatorController(rootObject, loadedAnimator, groupName);
                     _globalFxAnimator = loadedAnimator;
                 }
                 else
@@ -225,7 +224,7 @@ namespace Editor
             }
             else
             {
-                UpdateToggleAnimatorController(_globalFxAnimator, groupName);
+                UpdateToggleAnimatorController(rootObject, _globalFxAnimator, groupName);
             }
 
 
@@ -234,8 +233,8 @@ namespace Editor
             mergeAnimator.matchAvatarWriteDefaults = true;
             mergeAnimator.deleteAttachedAnimator = true;
 
-            ConfigureAvatarParameters(obj, Md5Hash(groupName));
-            ConfigureMenuItem(obj, Md5Hash(groupName));
+            ConfigureAvatarParameters(rootObject, obj, Md5Hash(rootObject.name + "_" + groupName));
+            ConfigureMenuItem(obj, Md5Hash(rootObject.name + "_" +  groupName));
 
 
             AssetDatabase.SaveAssets();
@@ -243,16 +242,19 @@ namespace Editor
         }
 
 
-        private static void ConfigureAvatarParameters(GameObject obj, string parameterName)
+        private static void ConfigureAvatarParameters(GameObject rootObject, GameObject obj, string parameterName)
         {
             var avatarParameters = obj.AddComponent<ModularAvatarParameters>();
 
             var parameterExists = avatarParameters.parameters.Any(p => p.nameOrPrefix == parameterName);
 
+            var param = "Group_" + rootObject.name + "_"  + parameterName;
+            Debug.Log("Group Param Name :: " + param);
+            
             if (parameterExists) return;
             var newParameter = new ParameterConfig
             {
-                nameOrPrefix = parameterName,
+                nameOrPrefix =  param,
                 syncType = ParameterSyncType.Bool,
                 defaultValue = 1,
                 saved = true
@@ -271,16 +273,18 @@ namespace Editor
 
         private static void ConfigureMenuItem(GameObject obj, string parameterName)
         {
+            
+            var rootObject = Selection.activeGameObject.transform.root.gameObject;
+            
             var menuItem = obj.AddComponent<ModularAvatarMenuItem>();
             menuItem.Control = menuItem.Control ?? new VRCExpressionsMenu.Control();
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.Toggle;
-            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = parameterName };
+            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = "Group_" + rootObject.name + "_" +  parameterName };
         }
 
 
-        [CreateAssetMenu(fileName = "AnimatorControllerData", menuName = "ScriptableObjects/AnimatorControllerData",
-            order = 1)]
+        [CreateAssetMenu(fileName = "AnimatorControllerData", menuName = "ScriptableObjects/AnimatorControllerData", order = 1)]
         public class AnimatorControllerData : ScriptableObject
         {
             public AnimatorController animatorController;
@@ -292,15 +296,15 @@ namespace Editor
             var rootObject = Selection.activeGameObject.transform.root.gameObject;
             var controllerPath = $"Assets/Hirami/Toggle/" + rootObject.name + "_group_toggle_fx.controller";
             
-            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
-            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_off.anim";
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" +  groupName) + "_off.anim";
             
             var animatorController = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath) ?? AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
             
      
             AnimatorStateMachine stateMachine = new AnimatorStateMachine
             {
-                name = Md5Hash(groupName),
+                name = "Group_" + rootObject.name + "_" +  Md5Hash(rootObject.name + "_" + groupName),
                 hideFlags = HideFlags.HideInHierarchy
             };
             AssetDatabase.AddObjectToAsset(stateMachine, animatorController);
@@ -308,7 +312,7 @@ namespace Editor
             {
                 new AnimatorControllerLayer
                 {
-                    name = Md5Hash(groupName),
+                    name = "Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName),
                     stateMachine = stateMachine,
                     defaultWeight = 1f
                 }
@@ -316,7 +320,7 @@ namespace Editor
 
             AnimatorControllerParameter parameter = new AnimatorControllerParameter
             {
-                name = Md5Hash(groupName),
+                name = "Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" +  groupName),
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
@@ -346,14 +350,14 @@ namespace Editor
             transitionToSecond.hasExitTime = false;
             transitionToSecond.exitTime = 0f;
             transitionToSecond.duration = 0f;
-            transitionToSecond.AddCondition(conditionModeForSecond, 0, Md5Hash(groupName));
+            transitionToSecond.AddCondition(conditionModeForSecond, 0, "Group_" + rootObject.name + "_" +  Md5Hash(rootObject.name + "_" + groupName));
 
             // Create the transition to the first state
             AnimatorStateTransition transitionToFirst = secondState.AddTransition(firstState);
             transitionToFirst.hasExitTime = false;
             transitionToFirst.exitTime = 0f;
             transitionToFirst.duration = 0f;
-            transitionToFirst.AddCondition(conditionModeForFirst, 0, Md5Hash(groupName));
+            transitionToFirst.AddCondition(conditionModeForFirst, 0, "Group_" + rootObject.name + "_" +  Md5Hash(rootObject.name + "_" + groupName));
 
 
             // 변경 사항 저장
@@ -364,10 +368,11 @@ namespace Editor
             return animatorController;
         }
 
-        private static void UpdateToggleAnimatorController(AnimatorController animatorController, string groupName)
+        private static void UpdateToggleAnimatorController(GameObject rootObject, AnimatorController animatorController, string groupName)
         {
-            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_on.anim";
-            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + Md5Hash(groupName) + "_off.anim";
+            
+            string onToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" +groupName) + "_on.anim";
+            string offToggleAnimePath = $"Assets/Hirami/Toggle/Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName) + "_off.anim";
             
             // 애니메이션 클립 로드 또는 생성
             AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath) ?? new AnimationClip();
@@ -376,11 +381,11 @@ namespace Editor
             // 새로운 파라미터 생성 및 추가
             AnimatorControllerParameter newParam = new AnimatorControllerParameter
             {
-                name = Md5Hash(groupName),
+                name = "Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName),
                 type = AnimatorControllerParameterType.Bool,
                 defaultBool = true
             };
-            if (animatorController.parameters.All(p => p.name != Md5Hash(groupName)))
+            if (animatorController.parameters.All(p => p.name != Md5Hash(rootObject.name + "_" + groupName)))
             {
                 animatorController.AddParameter(newParam);
             }
@@ -388,18 +393,18 @@ namespace Editor
             // 새로운 레이어 생성 및 추가
             AnimatorControllerLayer newLayer = new AnimatorControllerLayer
             {
-                name = Md5Hash(groupName),
+                name = "Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName),
                 stateMachine = new AnimatorStateMachine(),
                 defaultWeight = 1f
             };
-            if (animatorController.layers.All(l => l.name != Md5Hash(groupName)))
+            if (animatorController.layers.All(l => l.name != Md5Hash(rootObject.name + "_" + groupName)))
             {
                 AssetDatabase.AddObjectToAsset(newLayer.stateMachine, animatorController);
                 animatorController.AddLayer(newLayer);
             }
 
             // 상태 및 트랜지션 구성
-            ConfigureStateAndTransition(newLayer.stateMachine, onClip, offClip, Md5Hash(groupName));
+            ConfigureStateAndTransition(newLayer.stateMachine, onClip, offClip, "Group_" + rootObject.name + "_" + Md5Hash(rootObject.name + "_" + groupName));
 
             // 변경 사항 저장
             AssetDatabase.SaveAssets();
@@ -492,47 +497,7 @@ namespace Editor
         }
 
 
-        // JSON 파일에 기록을 남기는 메소드
-        private static void WriteHashMappingToJson(string originalName, string hashedName)
-        {
-            // JSON 파일 경로
-            string jsonFilePath = "Assets/Hirami/Toggle/NameHashMappings.json";
-
-            // 기존 데이터 로드 또는 새로운 구조 생성
-            NameHashMapping nameHashMapping;
-            if (File.Exists(jsonFilePath))
-            {
-                string json = File.ReadAllText(jsonFilePath);
-                nameHashMapping = JsonUtility.FromJson<NameHashMapping>(json);
-                if (nameHashMapping == null) // 추가된 검사
-                {
-                    nameHashMapping = new NameHashMapping();
-                }
-            }
-            else
-            {
-                nameHashMapping = new NameHashMapping(); // 새 구조 생성
-            }
-
-            // "Group_" 접두사를 추가하여 원래 이름 구성
-            string groupNameWithPrefix = "Group_" + originalName;
-
-            // 중복 검사 및 새 기록 추가
-            if (!nameHashMapping.mappings.Any(pair => pair.originalName == groupNameWithPrefix && pair.hashedName == hashedName))
-            {
-                NameHashPair newPair = new NameHashPair { originalName = groupNameWithPrefix, hashedName = hashedName };
-                nameHashMapping.mappings.Add(newPair);
-
-                // JSON 파일 쓰기
-                string newJson = JsonUtility.ToJson(nameHashMapping, true);
-                File.WriteAllText(jsonFilePath, newJson);
-                AssetDatabase.Refresh();
-            }
-            else
-            {
-                Debug.Log($"Entry for '{groupNameWithPrefix}' with hash '{hashedName}' already exists and will not be duplicated.");
-            }
-        }
+        
 
 
         
