@@ -8,7 +8,7 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
 
-//v1.0.67
+//v1.0.68
 namespace Editor
 {
     public class DeleteToggleObjects : EditorWindow
@@ -235,8 +235,7 @@ namespace Editor
                     
                     if (toggleName.Value)
                     {
-                        
-                        Debug.Log("toggleName.Value :: " + toggleName.Key);
+                
                         var toggleObj = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting() + "/" + toggleName.Key);
                         var rootObject = toggleObj.transform.root.gameObject;
 
@@ -321,10 +320,7 @@ namespace Editor
         private void DeleteAnimationFiles(string toggleName, string controllerType, string type, string animePath, string hashName)
         {
             
-            Debug.Log("DeleteAnimationFiles toggleName :: " + toggleName);
-            Debug.Log("DeleteAnimationFiles controllerType :: " + controllerType);
-            Debug.Log("DeleteAnimationFiles type :: " + type);
-            Debug.Log("DeleteAnimationFiles toggleName :: " + animePath);
+     
             
             if (type.Equals("group"))
             {

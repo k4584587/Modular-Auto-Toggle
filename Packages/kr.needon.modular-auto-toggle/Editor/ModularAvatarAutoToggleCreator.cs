@@ -5,13 +5,14 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using nadena.dev.modular_avatar.core;
+using Runtime;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using static Editor.GroupTogglePrefabCreatorGroups;
 
-//v1.0.67
+//v1.0.68
 namespace Editor
 {
     public abstract class TogglePrefabCreator
@@ -19,6 +20,10 @@ namespace Editor
         private static AnimatorController _globalFxAnimator;
         private static string _selectGameObejct;
         private static readonly string TogglePrefabName = ReadToggleMenuNameSetting();
+        
+        // properties as a item
+        [SerializeField] bool _default;
+        public bool Default { get => _default; set => _default = value; }
 
         [MenuItem("GameObject/Add Toggle Items", false, 0)]
         private static void CreateToggleItemsInHierarchy()
@@ -105,6 +110,9 @@ namespace Editor
                 togglesGameObject = new GameObject(string.IsNullOrEmpty(ReadToggleMenuNameSetting()) ? "Toggles" : ReadToggleMenuNameSetting());
                 togglesGameObject.transform.SetParent(rootGameObject.transform, false);
             }
+            
+        
+
 
             var toggleName = "Toggle_" + selectedPrefab.name; //파라미터 이름 설정
             var newToggleGameObject = new GameObject(toggleName);
@@ -141,10 +149,16 @@ namespace Editor
             }
 
             var mergeAnimator = togglesGameObject.GetComponent<ModularAvatarMergeAnimator>();
+            Texture2D toggleIcon;
             if (mergeAnimator == null)
             {
                 togglesGameObject.AddComponent<ModularAvatarMenuInstaller>();
-                ToggleConfigureSubMenuItem(togglesGameObject);
+                
+                toggleIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/kr.needon.modular-auto-toggle/Resource/toggleOFF.png");
+                //ConfigureMenuItem(myGameObject, "MyParameter", "MyOriginalName", myIcon);
+
+                
+                ToggleConfigureSubMenuItem(togglesGameObject, toggleIcon);
                 mergeAnimator = togglesGameObject.AddComponent<ModularAvatarMergeAnimator>();
             }
             
@@ -182,10 +196,15 @@ namespace Editor
             mergeAnimator.pathMode = MergeAnimatorPathMode.Absolute;
             mergeAnimator.matchAvatarWriteDefaults = true;
             mergeAnimator.deleteAttachedAnimator = true;
+
             
 
             ConfigureAvatarParameters(rootObject, obj, Md5Hash(rootObject.name + "_" + prefabName));
-            ConfigureMenuItem(obj, Md5Hash(rootObject.name + "_" + prefabName), prefabName);
+            
+            toggleIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
+            ConfigureMenuItem(obj, Md5Hash(rootObject.name + "_" + prefabName), prefabName, toggleIcon);
+            
+            obj.AddComponent<ToggleItem>();
             
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -210,16 +229,20 @@ namespace Editor
             avatarParameters.parameters.Add(newParameter);
         }
 
-        private static void ToggleConfigureSubMenuItem(GameObject obj)
+        private static void ToggleConfigureSubMenuItem(GameObject obj, Texture2D icon)
         {
+            obj.AddComponent<ToggleConfig>();
+            obj.AddComponent<DeleteToggle>();
             var menuItem = obj.AddComponent<ModularAvatarMenuItem>();
             menuItem.Control = menuItem.Control ?? new VRCExpressionsMenu.Control();
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.SubMenu;
             menuItem.MenuSource = SubmenuSource.Children;
+            menuItem.Control.icon = icon; // 메뉴 아이콘 설정
         }
+        
 
-        private static void ConfigureMenuItem(GameObject obj, string parameterName, string originalName)
+        private static void ConfigureMenuItem(GameObject obj, string parameterName, string originalName, Texture2D icon)
         {
             var rootObject = Selection.activeGameObject.transform.root.gameObject;
             
@@ -228,6 +251,7 @@ namespace Editor
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.Toggle;
             menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = "Toggle_" + rootObject.name + "_" + originalName + "_" + parameterName }; //모듈러 파라미터 이름 설정
+            menuItem.Control.icon = icon; // 메뉴 아이콘 설정
         }
 
         private static AnimatorController CreateToggleAnimatorController(string originalName) {
@@ -525,21 +549,50 @@ public class HiramiAssetPostprocessor : AssetPostprocessor
         string[] movedAssets,
         string[] movedFromAssetPaths)
     {
-        const string settingJsonFilePath = "Assets/Hirami/Toggle/setting.json"; 
-        
+        const string settingJsonFilePath = "Assets/Hirami/Toggle/setting.json";
         
         // JSON 파일이 존재하는지 확인
         if (!AssetDatabase.LoadAssetAtPath<TextAsset>(settingJsonFilePath))
         {
-            var jsonData =
-                "{\"toggleReverse\":false, \"toggleMenuName\":\"Toggles\", \"groupToggleMenuName\":\"GroupToggles\"}"; // 생성할 JSON 데이터
-            File.WriteAllText(settingJsonFilePath, jsonData); 
+            var jsonData = new SettingsData
+            {
+                version = "1.0.68",
+                toggleReverse = false,
+                toggleMenuName = "Toggles",
+                groupToggleMenuName = "GroupToggles"
+            };
+
+            // JSON 데이터를 수동으로 포맷팅하여 문자열로 변환
+            string jsonString = FormatJson(jsonData);
+
+            // JSON 데이터를 파일에 저장
+            File.WriteAllText(settingJsonFilePath, jsonString);
             AssetDatabase.ImportAsset(settingJsonFilePath);
         }
 
-        
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+    }
+
+    private static string FormatJson(SettingsData jsonData)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine($"  \"version\": \"{jsonData.version}\",");
+        sb.AppendLine($"  \"toggleReverse\": {jsonData.toggleReverse.ToString().ToLower()},");
+        sb.AppendLine($"  \"toggleMenuName\": \"{jsonData.toggleMenuName}\",");
+        sb.AppendLine($"  \"groupToggleMenuName\": \"{jsonData.groupToggleMenuName}\"");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private class SettingsData
+    {
+        public string version { get; set; }
+        public bool toggleReverse { get; set; }
+        public string toggleMenuName { get; set; }
+        public string groupToggleMenuName { get; set; }
     }
 }
 

@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
+//v1.0.68
 namespace Editor
 {
     public class AutoCreateFolder : AssetPostprocessor
