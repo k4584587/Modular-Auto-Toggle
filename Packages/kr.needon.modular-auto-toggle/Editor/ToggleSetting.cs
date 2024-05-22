@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.67
+//v1.0.68
 namespace Editor
 {
     public class ToggleSetting : EditorWindow
@@ -18,36 +18,33 @@ namespace Editor
         {
             var window = GetWindowWithRect<ToggleSetting>(new Rect(0, 0, 600, 400), false, "Toggle Setting");
             window.Show();
-            window.LoadJson(); // JSON 파일 불러오기
+            window.LoadJson();
         }
 
         private void OnGUI()
         {
             GUILayout.BeginVertical("box");
-
             GUILayout.Space(10);
 
-            // 텍스트 입력 필드 추가
             _toggleMenuName = EditorGUILayout.TextField("Toggle Menu Name", _toggleMenuName);
             GUILayout.Space(10);
             _groupToggleMenuName = EditorGUILayout.TextField("GroupToggle Menu Name", _groupToggleMenuName);
-
             GUILayout.Space(10);
 
             _toggleReverse = EditorGUILayout.Toggle("토글 반전 (Toggle Reverse) ", _toggleReverse);
-
             GUILayout.Space(10);
 
             if (GUILayout.Button("Apply"))
             {
                 ApplySettings();
-                SaveJson(); // JSON 파일 저장
+                SaveJson();
             }
-            
+
             if (GUILayout.Button("Reset Settings"))
             {
-                ResetSettings(); 
+                ResetSettings();
             }
+
             GUILayout.EndVertical();
         }
 
@@ -55,7 +52,6 @@ namespace Editor
         {
             if (File.Exists(jsonFilePath))
             {
-                // JSON 데이터를 기본 값으로 설정
                 ToggleData data = new ToggleData
                 {
                     toggleReverse = false,
@@ -63,37 +59,28 @@ namespace Editor
                     groupToggleMenuName = "GroupToggles"
                 };
 
-                // JSON으로 변환
                 string json = JsonUtility.ToJson(data, true);
-
-                // 파일에 쓰기
                 File.WriteAllText(jsonFilePath, json);
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
-
-                // 사용자 인터페이스에도 기본값 설정
+                
                 _toggleReverse = false;
                 _toggleMenuName = "Toggles";
                 _groupToggleMenuName = "GroupToggles";
 
-                // 사용자에게 적용됐음을 알림
                 EditorUtility.DisplayDialog("Reset Settings / 설정 초기화", "Settings have been reset to default values.\n설정이 기본값으로 재설정되었습니다.", "OK");
             }
-            else
+            else 
             {
-                // 파일이 없을 때 경고 표시
                 EditorUtility.DisplayDialog("Warning / 경고", "Settings file not found.\n설정 파일을 찾을 수 없습니다.", "OK");
             }
         }
-
-
 
         private void ApplySettings()
         {
             EditorUtility.DisplayDialog("Confirmation / 확인", "Settings have been applied.\n설정이 적용되었습니다.", "OK");
         }
-
-
+ 
         private void LoadJson()
         {
             if (File.Exists(jsonFilePath))
@@ -108,19 +95,19 @@ namespace Editor
 
         private void SaveJson()
         {
-            ToggleData data = new ToggleData();
-            
-            data.toggleReverse = _toggleReverse;
-            data.toggleMenuName = _toggleMenuName;
-            data.groupToggleMenuName = _groupToggleMenuName;
-            
+            ToggleData data = new ToggleData
+            {
+                toggleReverse = _toggleReverse,
+                toggleMenuName = _toggleMenuName,
+                groupToggleMenuName = _groupToggleMenuName
+            };
+
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(jsonFilePath, json);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
     }
-
 
     [System.Serializable]
     public class ToggleData
@@ -129,6 +116,5 @@ namespace Editor
         public string toggleMenuName;
         public string groupToggleMenuName;
     }
-
 }
 #endif
