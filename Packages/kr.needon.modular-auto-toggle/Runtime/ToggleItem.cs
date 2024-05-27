@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,3 +23,4 @@ public class ToggleItem : AvatarTagComponent
     [SerializeField] private List<SetBlendShape> _blendShapesToChange = new List<SetBlendShape>();
     public IEnumerable<SetBlendShape> BlendShapesToChange => _blendShapesToChange.Where(e => e.SkinnedMesh != null);
 }
+#endif
