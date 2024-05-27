@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
+using UnityEngine;
 using UnityEditor;
 using Runtime;
 
@@ -68,3 +69,4 @@ public static class HierarchyGUI
         }
     }
 }
+#endif

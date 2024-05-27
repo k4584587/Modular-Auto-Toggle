@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -331,3 +332,4 @@ public class DeleteToggleEditor : UnityEditor.Editor
         public string toggleMenuName;
     }
 }
+#endif

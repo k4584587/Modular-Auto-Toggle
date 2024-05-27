@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if UNITY_EDITOR
+using System;
 using System.IO;
 using System.Reflection;
 using Runtime;
@@ -208,3 +209,4 @@ public class ToggleData
     public string toggleMenuName;
     public string groupToggleMenuName;
 }
+#endif

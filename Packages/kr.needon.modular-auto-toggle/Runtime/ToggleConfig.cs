@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using nadena.dev.modular_avatar.core;
@@ -55,3 +56,4 @@ public class ToggleConfig : AvatarTagComponent
         }
     }
 }
+#endif
