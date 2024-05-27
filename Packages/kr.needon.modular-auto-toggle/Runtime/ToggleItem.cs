@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using nadena.dev.modular_avatar.core;
 using UnityEngine;
 
 //v1.0.68
 [DisallowMultipleComponent]
 [AddComponentMenu("Hirami/Toggle/ToggleItem")]
-public class ToggleItem : MonoBehaviour
+public class ToggleItem : AvatarTagComponent
 {
     public Texture2D _icon;
         
