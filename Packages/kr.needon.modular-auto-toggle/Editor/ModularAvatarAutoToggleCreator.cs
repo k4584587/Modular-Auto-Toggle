@@ -556,7 +556,7 @@ public class HiramiAssetPostprocessor : AssetPostprocessor
         {
             var jsonData = new SettingsData
             {
-                version = "1.0.68",
+                version = "1.0.69",
                 toggleReverse = false,
                 toggleMenuName = "Toggles",
                 groupToggleMenuName = "GroupToggles"

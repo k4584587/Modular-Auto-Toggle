@@ -151,7 +151,7 @@ public class ToggleConfigEditor : Editor
         {
             ToggleData data = new ToggleData
             {
-                version = "1.0.68",
+                version = "1.0.69",
                 toggleReverse = false,
                 toggleMenuName = "Toggles",
                 groupToggleMenuName = "GroupToggles"
