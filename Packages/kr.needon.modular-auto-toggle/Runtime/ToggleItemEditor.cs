@@ -1,253 +1,263 @@
-#if UNITY_EDITOR
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using nadena.dev.modular_avatar.core;
-using Runtime;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.68
-[CustomEditor(typeof(ToggleItem))]
-[InitializeOnLoad]
-public class ToggleItemEditor : Editor
+namespace Runtime
 {
-    private const string iconFilePath = "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png";
-    private ToggleItem _toggleItem;
+    [CustomEditor(typeof(ToggleItem))]
+    public class ToggleItemEditor : UnityEditor.Editor
+    {
+        private Texture2D _icon;
+        private bool _applyToOnAnimation = true; // On 애니메이션에 적용할지 여부
+        private bool _applyToOffAnimation = true; // Off 애니메이션에 적용할지 여부
 
-    static ToggleItemEditor()
-    {
-        EditorApplication.update += UpdateIcons;
-    }
-        
-    private static void UpdateIcons()
-    {
-        // 모든 ToggleItem 인스턴스에 대해 아이콘 설정
-        var toggleItems = Resources.FindObjectsOfTypeAll<ToggleItem>();
-        foreach (var toggleItem in toggleItems)
-        {
-            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(iconFilePath);
-            SetUnityObjectIcon(toggleItem, icon);
-        }
-        
-        // 설정 완료 후 이벤트 해제
-        EditorApplication.update -= UpdateIcons;
-    }
+        private const string ApplyToOnAnimationKey = "ToggleItemEditor_ApplyToOnAnimation";
+        private const string ApplyToOffAnimationKey = "ToggleItemEditor_ApplyToOffAnimation";
 
-    private void OnEnable()
-    {
-        this._toggleItem = (ToggleItem)target;
-        this._toggleItem._icon = AssetDatabase.LoadAssetAtPath<Texture2D>(iconFilePath);
-        SetUnityObjectIcon(this._toggleItem, this._toggleItem._icon);
-    }
-        
-    private static void SetUnityObjectIcon(UnityEngine.Object unityObject, Texture2D icon)
-    {
-        try
+        private void OnEnable()
         {
-            if (unityObject != null && icon != null)
+            // 아이콘 로드
+            _icon = AssetDatabase.LoadAssetAtPath<Texture2D>(
+                "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
+            if (_icon != null)
             {
-                Type editorGUIUtilityType = typeof(EditorGUIUtility);
-                BindingFlags bindingFlags = BindingFlags.InvokeMethod | BindingFlags.Static | BindingFlags.NonPublic;
-                object[] args = new object[] { unityObject, icon };
-                editorGUIUtilityType.InvokeMember("SetIconForObject", bindingFlags, null, null, args);
+                EditorGUIUtility.SetIconForObject(target, _icon);
             }
-        }
-        catch (MissingMethodException)
-        { 
-#if UNITY_2022_3_OR_NEWER
-            if (unityObject != null && icon != null)
-            {
-                EditorGUIUtility.SetIconForObject(unityObject, icon);
-            }
-#endif
-        }
-    }
-        
-    public override void OnInspectorGUI()
-    {
-        var blendShapesToChange = serializedObject.FindProperty("_blendShapesToChange");
 
-        if (blendShapesToChange == null)
+            _applyToOnAnimation = EditorPrefs.GetBool(ApplyToOnAnimationKey, true);
+            _applyToOffAnimation = EditorPrefs.GetBool(ApplyToOffAnimationKey, true);
+        }
+
+        private void OnDisable()
         {
-            EditorGUILayout.HelpBox("_blendShapesToChange property not found.", MessageType.Error);
-            return;
+            EditorPrefs.SetBool(ApplyToOnAnimationKey, _applyToOnAnimation);
+            EditorPrefs.SetBool(ApplyToOffAnimationKey, _applyToOffAnimation);
         }
 
-        EditorGUILayout.LabelField("Blend Shapes");
-
-        EditorGUI.indentLevel++;
-
-        int listSize = blendShapesToChange.arraySize;
-        EditorGUILayout.LabelField("Size", listSize.ToString());
-
-        EditorGUILayout.Space();
-
-        for (int i = 0; i < blendShapesToChange.arraySize; i++)
+        public override void OnInspectorGUI()
         {
-            if (i > 0) EditorGUILayout.Space(); // Add space between elements
+            serializedObject.Update();
 
-            EditorGUILayout.BeginVertical(GUI.skin.box); // Start box
+            var blendShapesToChange = serializedObject.FindProperty("_blendShapesToChange");
 
-            var element = blendShapesToChange.GetArrayElementAtIndex(i);
-            var skinnedMesh = element.FindPropertyRelative("SkinnedMesh");
-            var blendShapeName = element.FindPropertyRelative("name");
-            var blendShapeValue = element.FindPropertyRelative("value");
+            EditorGUILayout.LabelField("Blend Shapes");
 
-            EditorGUILayout.PropertyField(skinnedMesh, new GUIContent("Skinned Mesh"));
+            EditorGUI.indentLevel++;
 
-            if (skinnedMesh.objectReferenceValue is SkinnedMeshRenderer renderer)
+            int listSize = blendShapesToChange.arraySize;
+            EditorGUILayout.LabelField("Size", listSize.ToString());
+
+            EditorGUILayout.Space();
+
+            for (int i = 0; i < blendShapesToChange.arraySize; i++)
             {
-                List<string> blendShapeNames = new List<string> { "Please select" };
-                blendShapeNames.AddRange(Enumerable.Range(0, renderer.sharedMesh.blendShapeCount)
-                    .Select(index => renderer.sharedMesh.GetBlendShapeName(index)));
+                if (i > 0) EditorGUILayout.Space(); // Add space between elements
 
-                int currentIndex = blendShapeNames.IndexOf(blendShapeName.stringValue);
-                if (currentIndex == -1) currentIndex = 0; // 기본값으로 "Please select" 설정
+                EditorGUILayout.BeginVertical(GUI.skin.box); // Start box
 
-                currentIndex = EditorGUILayout.Popup("Name", currentIndex, blendShapeNames.ToArray());
+                var element = blendShapesToChange.GetArrayElementAtIndex(i);
+                var skinnedMesh = element.FindPropertyRelative("SkinnedMesh");
+                var blendShapeName = element.FindPropertyRelative("name");
+                var blendShapeValue = element.FindPropertyRelative("value");
 
-                blendShapeName.stringValue = blendShapeNames[currentIndex];
+                EditorGUILayout.PropertyField(skinnedMesh, new GUIContent("Skinned Mesh"));
 
-                if (blendShapeName.stringValue != "Please select")
+                if (skinnedMesh.objectReferenceValue is SkinnedMeshRenderer renderer)
                 {
-                    blendShapeValue.intValue = EditorGUILayout.IntSlider("Value", blendShapeValue.intValue, 0, 100);
+                    List<string> blendShapeNames = new List<string> { "Please select" };
+                    blendShapeNames.AddRange(Enumerable.Range(0, renderer.sharedMesh.blendShapeCount)
+                        .Select(index => renderer.sharedMesh.GetBlendShapeName(index)));
+
+                    int currentIndex = blendShapeNames.IndexOf(blendShapeName.stringValue);
+                    if (currentIndex == -1) currentIndex = 0; // 기본값으로 "Please select" 설정
+
+                    currentIndex = EditorGUILayout.Popup("Name", currentIndex, blendShapeNames.ToArray());
+
+                    blendShapeName.stringValue = blendShapeNames[currentIndex];
+
+                    if (blendShapeName.stringValue != "Please select")
+                    {
+                        blendShapeValue.intValue = EditorGUILayout.IntSlider("Value", blendShapeValue.intValue, 0, 100);
+                    }
+                    else
+                    {
+                        EditorGUI.BeginDisabledGroup(true);
+                        EditorGUILayout.IntSlider("Value", 0, 0, 100);
+                        EditorGUI.EndDisabledGroup();
+                    }
                 }
                 else
                 {
+                    EditorGUILayout.LabelField("Name", "Please select a Skinned Mesh");
+                    blendShapeName.stringValue = "Please select";
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.IntSlider("Value", 0, 0, 100);
                     EditorGUI.EndDisabledGroup();
                 }
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Name", "Please select a Skinned Mesh");
-                blendShapeName.stringValue = "Please select";
-                EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.IntSlider("Value", 0, 0, 100);
-                EditorGUI.EndDisabledGroup();
+
+                EditorGUILayout.EndVertical(); // End box
             }
 
-            EditorGUILayout.EndVertical(); // End box
-        }
+            EditorGUILayout.Space();
 
-        EditorGUILayout.Space();
-
-        // Add and remove buttons
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace(); // Push buttons to the right
-        if (GUILayout.Button("+", GUILayout.Width(30), GUILayout.Height(20)))
-        {
-            blendShapesToChange.InsertArrayElementAtIndex(blendShapesToChange.arraySize);
-            var newElement = blendShapesToChange.GetArrayElementAtIndex(blendShapesToChange.arraySize - 1);
-            newElement.FindPropertyRelative("SkinnedMesh").objectReferenceValue = null;
-            newElement.FindPropertyRelative("name").stringValue = "Please select";
-            newElement.FindPropertyRelative("value").intValue = 0;
-        }
-
-        if (GUILayout.Button("-", GUILayout.Width(30), GUILayout.Height(20)))
-        {
-            if (blendShapesToChange.arraySize > 0)
+            // Add and remove buttons
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace(); // Push buttons to the right
+            if (GUILayout.Button("+", GUILayout.Width(30), GUILayout.Height(20)))
             {
-                blendShapesToChange.DeleteArrayElementAtIndex(blendShapesToChange.arraySize - 1);
+                blendShapesToChange.InsertArrayElementAtIndex(blendShapesToChange.arraySize);
+                var newElement = blendShapesToChange.GetArrayElementAtIndex(blendShapesToChange.arraySize - 1);
+                newElement.FindPropertyRelative("SkinnedMesh").objectReferenceValue = null;
+                newElement.FindPropertyRelative("name").stringValue = "Please select";
+                newElement.FindPropertyRelative("value").intValue = 0;
             }
-        }
 
-        EditorGUILayout.EndHorizontal();
-
-        EditorGUI.indentLevel--;
-
-        EditorGUILayout.Space();
-
-        // Apply 버튼
-        if (GUILayout.Button("Apply"))
-        {
-            ApplyBlendShape();
-        }
-
-        void ApplyBlendShape()
-        {
-            // Cast target to ToggleItem
-            ToggleItem toggleItem = (ToggleItem)target;
-
-            // Get the other components
-            var menuItem = toggleItem.GetComponent<ModularAvatarMenuItem>();
-
-            if (menuItem != null)
+            if (GUILayout.Button("-", GUILayout.Width(30), GUILayout.Height(20)))
             {
-                Debug.Log($"MAMenuItem found: {menuItem.name}");
-
-                // Access the Control property
-                var control = menuItem.Control;
-
-                // Get the parameter name
-                string parameterName = control.parameter?.name ?? "None";
-                Debug.Log($"Parameter name: {parameterName}");
-
-                Debug.Log("토글로왔음");
-                string onToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_on.anim";
-                string offToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_off.anim";
-
-                // Check if the files exist
-                bool onToggleExists = File.Exists(onToggleAnimePath);
-                bool offToggleExists = File.Exists(offToggleAnimePath);
-
-                if (onToggleExists && offToggleExists)
+                if (blendShapesToChange.arraySize > 0)
                 {
-                    Debug.Log("on off 파일이 같이 있음");
+                    blendShapesToChange.DeleteArrayElementAtIndex(blendShapesToChange.arraySize - 1);
+                }
+            }
 
-                    AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath);
+            EditorGUILayout.EndHorizontal();
 
-                    // Clear all existing blend shape animations
-                    ClearAllBlendShapeAnimations(onClip, toggleItem);
+            EditorGUI.indentLevel--;
 
-                    foreach (var blendShapeChange in toggleItem.BlendShapesToChange)
+            EditorGUILayout.Space();
+
+            // Apply 버튼
+            EditorGUILayout.BeginHorizontal();
+            _applyToOnAnimation = EditorGUILayout.Toggle("Apply to On Animation", _applyToOnAnimation);
+            _applyToOffAnimation = EditorGUILayout.Toggle("Apply to Off Animation", _applyToOffAnimation);
+            EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Apply"))
+            {
+                applyBlendShape();
+            }
+
+            void applyBlendShape()
+            {
+                // Cast target to ToggleItem
+                ToggleItem toggleItem = (ToggleItem)target;
+
+                // Get the other components
+                var menuItem = toggleItem.GetComponent<ModularAvatarMenuItem>();
+
+                if (menuItem != null)
+                {
+                    Debug.Log($"MAMenuItem found: {menuItem.name}");
+
+                    // Access the Control property
+                    var control = menuItem.Control;
+
+                    // Get the parameter name
+                    string parameterName = control.parameter?.name ?? "None";
+                    Debug.Log($"Parameter name: {parameterName}");
+
+                    string onToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_on.anim";
+                    string offToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_off.anim";
+
+                    // Check if the files exist
+                    bool onToggleExists = File.Exists(onToggleAnimePath);
+                    bool offToggleExists = File.Exists(offToggleAnimePath);
+
+                    if (onToggleExists && offToggleExists)
                     {
-                        // Get the SkinnedMeshRenderer
-                        var skinnedMeshRenderer = blendShapeChange.SkinnedMesh;
-                        if (skinnedMeshRenderer == null) continue;
+                        AnimationClip onClip = _applyToOnAnimation
+                            ? AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath)
+                            : null;
+                        AnimationClip offClip = _applyToOffAnimation
+                            ? AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath)
+                            : null;
 
-                        // Get the blend shape index
-                        int blendShapeIndex =
-                            skinnedMeshRenderer.sharedMesh.GetBlendShapeIndex(blendShapeChange.name);
-                        if (blendShapeIndex < 0) continue;
+                        // Clear all existing blend shape animations
+                        if (_applyToOnAnimation)
+                        {
+                            clearAllBlendShapeAnimations(onClip, toggleItem);
+                        }
 
-                        // Apply blend shape changes to onClip and offClip
-                        var transform = skinnedMeshRenderer.transform;
-                        var blendShapePath = AnimationUtility.CalculateTransformPath(transform, transform.root);
+                        if (_applyToOffAnimation)
+                        {
+                            clearAllBlendShapeAnimations(offClip, toggleItem);
+                        }
 
-                        AnimationCurve onCurve = AnimationCurve.Constant(0, 1, blendShapeChange.value);
-                        AnimationUtility.SetEditorCurve(onClip, blendShapePath, typeof(SkinnedMeshRenderer),
-                            $"blendShape.{blendShapeChange.name}", onCurve);
+                        foreach (var blendShapeChange in toggleItem.BlendShapesToChange)
+                        {
+                            // Get the SkinnedMeshRenderer
+                            var skinnedMeshRenderer = blendShapeChange.SkinnedMesh;
+                            if (skinnedMeshRenderer == null) continue;
 
-                        AssetDatabase.SaveAssets();
+                            // Get the blend shape index
+                            int blendShapeIndex =
+                                skinnedMeshRenderer.sharedMesh.GetBlendShapeIndex(blendShapeChange.name);
+                            if (blendShapeIndex < 0) continue;
+
+                            // Apply blend shape changes to onClip and offClip
+                            var transform = skinnedMeshRenderer.transform;
+                            var blendShapePath = AnimationUtility.CalculateTransformPath(transform, transform.root);
+
+                            if (onClip != null)
+                            {
+                                AnimationCurve onCurve = AnimationCurve.Linear(0, blendShapeChange.value, 0,
+                                    blendShapeChange.value);
+                                onClip.SetCurve(blendShapePath, typeof(SkinnedMeshRenderer),
+                                    $"blendShape.{blendShapeChange.name}", onCurve);
+                            }
+
+                            if (offClip != null)
+                            {
+                                AnimationCurve offCurve = AnimationCurve.Linear(0, blendShapeChange.value, 0,
+                                    blendShapeChange.value);
+                                offClip.SetCurve(blendShapePath, typeof(SkinnedMeshRenderer),
+                                    $"blendShape.{blendShapeChange.name}", offCurve);
+                            }
+
+                            AssetDatabase.SaveAssets();
+                        }
+
+                        // 초기화된 애니메이션 클립에서 블렌드 쉐이프 값을 제거합니다.
+                        if (!_applyToOnAnimation && onToggleExists)
+                        {
+                            AnimationClip onClipToClear =
+                                AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath);
+                            clearAllBlendShapeAnimations(onClipToClear, toggleItem);
+                        }
+
+                        if (!_applyToOffAnimation && offToggleExists)
+                        {
+                            AnimationClip offClipToClear =
+                                AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath);
+                            clearAllBlendShapeAnimations(offClipToClear, toggleItem);
+                        }
                     }
                 }
             }
-        }
 
-        serializedObject.ApplyModifiedProperties();
 
-        void ClearAllBlendShapeAnimations(AnimationClip clip, ToggleItem toggleItem)
-        {
-            if (clip == null) return;
+            serializedObject.ApplyModifiedProperties();
 
-            // Remove all blend shape animations from the clip
-            var editorCurveBindings = AnimationUtility.GetCurveBindings(clip);
-            foreach (var binding in editorCurveBindings)
+            void clearAllBlendShapeAnimations(AnimationClip clip, ToggleItem toggleItem)
             {
-                if (!binding.propertyName.Equals("m_IsActive"))
-                {
-                    Debug.Log("path :: " + binding.path);
-                    AnimationUtility.SetEditorCurve(clip, binding, null);
-                }
-            }
+                if (clip == null) return;
 
-            AssetDatabase.SaveAssets();
+                // Remove all blend shape animations from the clip
+                var editorCurveBindings = AnimationUtility.GetCurveBindings(clip);
+                foreach (var binding in editorCurveBindings)
+                {
+                    if (!binding.propertyName.Equals("m_IsActive"))
+                    {
+                        Debug.Log("path :: " + binding.path);
+                        AnimationUtility.SetEditorCurve(clip, binding, null);
+                    }
+                }
+
+                AssetDatabase.SaveAssets();
+            }
         }
     }
 }
-#endif
