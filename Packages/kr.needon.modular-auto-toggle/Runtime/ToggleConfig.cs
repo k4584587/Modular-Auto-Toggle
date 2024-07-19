@@ -48,7 +48,7 @@ public class ToggleConfig : AvatarTagComponent
         else
         {
             // 파일이 없는 경우 기본값 설정
-            toggleConfig.version = "1.0.69";
+            toggleConfig.version = "1.0.70";
             toggleConfig.toggleReverse = false;
             toggleConfig.toggleMenuName = "Toggles";
             toggleConfig.groupToggleMenuName = "GroupToggles";
