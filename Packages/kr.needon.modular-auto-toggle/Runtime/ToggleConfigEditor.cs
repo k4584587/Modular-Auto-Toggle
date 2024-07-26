@@ -12,8 +12,6 @@ using UnityEngine;
 public class ToggleConfigEditor : Editor
 {
     private bool _toggleReverse;
-    private string _toggleMenuName = "Toggles"; 
-    private string _groupToggleMenuName = "GroupToggles";
         
     private const string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
     private Texture2D _icon;
@@ -72,7 +70,6 @@ public class ToggleConfigEditor : Editor
         {
             EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("toggleReverse"), new GUIContent("Toggle Reverse"));
             EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("toggleMenuName"), new GUIContent("Toggle Menu Name"));
-            EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("groupToggleMenuName"), new GUIContent("Group Toggle Menu Name"));
         }
         else
         {
@@ -108,7 +105,7 @@ public class ToggleConfigEditor : Editor
         }
         catch (MissingMethodException)
         { 
-            #if UNITY_2022_3_OR_NEWER
+#if UNITY_2022_3_OR_NEWER
             if (unityObject != null && icon != null)
             {
                 if (unityObject != null && icon != null)
@@ -116,7 +113,7 @@ public class ToggleConfigEditor : Editor
                     EditorGUIUtility.SetIconForObject(unityObject, icon);
                 }
             }
-            #endif
+#endif
         }
     }
 
@@ -133,8 +130,7 @@ public class ToggleConfigEditor : Editor
         {
             version = targetObject.toggleConfig.version,
             toggleReverse = targetObject.toggleConfig.toggleReverse,
-            toggleMenuName = targetObject.toggleConfig.toggleMenuName,
-            groupToggleMenuName = targetObject.toggleConfig.groupToggleMenuName
+            toggleMenuName = targetObject.toggleConfig.toggleMenuName
         };
 
         string json = JsonUtility.ToJson(data, true);
@@ -151,10 +147,9 @@ public class ToggleConfigEditor : Editor
         {
             ToggleData data = new ToggleData
             {
-                version = "1.0.70",
+                version = "1.0.71",
                 toggleReverse = false,
-                toggleMenuName = "Toggles",
-                groupToggleMenuName = "GroupToggles"
+                toggleMenuName = "Toggles"
             };
 
             string json = JsonUtility.ToJson(data, true);
@@ -167,7 +162,6 @@ public class ToggleConfigEditor : Editor
             {
                 targetObject.toggleConfig.toggleReverse = false;
                 targetObject.toggleConfig.toggleMenuName = "Toggles";
-                targetObject.toggleConfig.groupToggleMenuName = "GroupToggles";
             }
 
             EditorUtility.DisplayDialog("Reset Settings / 설정 초기화", "Settings have been reset to default values.\n설정이 기본값으로 재설정되었습니다.", "OK");
@@ -191,7 +185,6 @@ public class ToggleConfigEditor : Editor
                 targetObject.toggleConfig.version = data.version;
                 targetObject.toggleConfig.toggleReverse = data.toggleReverse;
                 targetObject.toggleConfig.toggleMenuName = data.toggleMenuName;
-                targetObject.toggleConfig.groupToggleMenuName = data.groupToggleMenuName;
             }
         }
         else
@@ -207,6 +200,5 @@ public class ToggleData
     public string version;
     public bool toggleReverse;
     public string toggleMenuName;
-    public string groupToggleMenuName;
 }
 #endif

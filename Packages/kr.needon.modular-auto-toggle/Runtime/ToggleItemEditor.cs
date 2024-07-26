@@ -158,10 +158,13 @@ namespace Runtime
 
                     // Get the parameter name
                     string parameterName = control.parameter?.name ?? "None";
-                    Debug.Log($"Parameter name: {parameterName}");
+                    string rootName = menuItem.transform.root.name;
 
-                    string onToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_on.anim";
-                    string offToggleAnimePath = $"Assets/Hirami/Toggle/{parameterName}_off.anim";
+                    Debug.Log($"Parameter name: {parameterName}");
+                    string fullPath = FindFileByGuid(parameterName, "Assets/Hirami/Toggle/"+rootName).Replace("_off.anim", "");
+
+                    string onToggleAnimePath = fullPath + "_on.anim";
+                    string offToggleAnimePath = fullPath + "_off.anim";
 
                     // Check if the files exist
                     bool onToggleExists = File.Exists(onToggleAnimePath);
@@ -258,6 +261,12 @@ namespace Runtime
                 }
 
                 AssetDatabase.SaveAssets();
+            }
+            string FindFileByGuid(string guid, string searchFolder)
+            {
+                var allFiles = Directory.GetFiles(searchFolder, "*", SearchOption.AllDirectories);
+                var fileWithGuid = allFiles.FirstOrDefault(file => Path.GetFileNameWithoutExtension(file).Contains(guid));
+                return fileWithGuid;
             }
         }
     }
