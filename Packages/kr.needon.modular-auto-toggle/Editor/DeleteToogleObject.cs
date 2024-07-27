@@ -93,7 +93,7 @@ namespace Editor
                     DestroyImmediate(togglesParent.gameObject);
                 }
                 
-                DeleteAllFilesInFolder("Assets/Hirami/Toggle");
+                DeleteAllFilesInFolder("Assets/Hirami/Toggle/" + _avatarDescriptor.transform.name);
 
                 togglesToDelete.Clear();
             }
