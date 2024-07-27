@@ -11,6 +11,7 @@ using UnityEngine;
 [InitializeOnLoad]
 public class ToggleConfigEditor : Editor
 {
+    private bool _toggleSaved;
     private bool _toggleReverse;
         
     private const string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
@@ -68,6 +69,7 @@ public class ToggleConfigEditor : Editor
         SerializedProperty toggleConfigProp = serializedObject.FindProperty("toggleConfig");
         if (toggleConfigProp != null)
         {
+            EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("toggleSaved"), new GUIContent("Toggle Saved"));
             EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("toggleReverse"), new GUIContent("Toggle Reverse"));
             EditorGUILayout.PropertyField(toggleConfigProp.FindPropertyRelative("toggleMenuName"), new GUIContent("Toggle Menu Name"));
         }
@@ -129,6 +131,7 @@ public class ToggleConfigEditor : Editor
         ToggleData data = new ToggleData
         {
             version = targetObject.toggleConfig.version,
+            toggleSaved = targetObject.toggleConfig.toggleSaved,
             toggleReverse = targetObject.toggleConfig.toggleReverse,
             toggleMenuName = targetObject.toggleConfig.toggleMenuName
         };
@@ -148,6 +151,7 @@ public class ToggleConfigEditor : Editor
             ToggleData data = new ToggleData
             {
                 version = "1.0.71",
+                toggleSaved = true,
                 toggleReverse = false,
                 toggleMenuName = "Toggles"
             };
@@ -160,6 +164,7 @@ public class ToggleConfigEditor : Editor
             var targetObject = (ToggleConfig)target;
             if (targetObject != null)
             {
+                targetObject.toggleConfig.toggleSaved = true;
                 targetObject.toggleConfig.toggleReverse = false;
                 targetObject.toggleConfig.toggleMenuName = "Toggles";
             }
@@ -183,6 +188,7 @@ public class ToggleConfigEditor : Editor
             if (targetObject != null)
             {
                 targetObject.toggleConfig.version = data.version;
+                targetObject.toggleConfig.toggleSaved = data.toggleSaved;
                 targetObject.toggleConfig.toggleReverse = data.toggleReverse;
                 targetObject.toggleConfig.toggleMenuName = data.toggleMenuName;
             }
@@ -198,6 +204,7 @@ public class ToggleConfigEditor : Editor
 public class ToggleData
 {
     public string version;
+    public bool toggleSaved;
     public bool toggleReverse;
     public string toggleMenuName;
 }

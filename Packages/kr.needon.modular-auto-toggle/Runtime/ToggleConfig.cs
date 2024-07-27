@@ -4,7 +4,7 @@ using System.IO;
 using nadena.dev.modular_avatar.core;
 using UnityEngine;
 
-//v1.0.68
+//v1.0.71
 [DisallowMultipleComponent]
 [AddComponentMenu("Hirami/Toggle/ToggleConfig")]
 public class ToggleConfig : AvatarTagComponent
@@ -16,6 +16,7 @@ public class ToggleConfig : AvatarTagComponent
     public struct SetToggleConfig
     {
         public string version;
+        public bool toggleSaved;
         public bool toggleReverse;
         public string toggleMenuName;
     }
@@ -48,6 +49,7 @@ public class ToggleConfig : AvatarTagComponent
         {
             // 파일이 없는 경우 기본값 설정
             toggleConfig.version = "1.0.71";
+            toggleConfig.toggleSaved = true;
             toggleConfig.toggleReverse = false;
             toggleConfig.toggleMenuName = "Toggles";
             Debug.LogWarning("Settings file not found. Default settings applied.");
