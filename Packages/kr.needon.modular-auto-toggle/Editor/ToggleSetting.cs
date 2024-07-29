@@ -10,7 +10,6 @@ namespace Editor
     {
         private bool _toggleReverse;
         private string _toggleMenuName = "Toggles"; 
-        private string _groupToggleMenuName = "GroupToggles";
         private const string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
 
         [MenuItem("Hirami/Auto Toggle/Toggle Setting", false, 0)]
@@ -27,8 +26,6 @@ namespace Editor
             GUILayout.Space(10);
 
             _toggleMenuName = EditorGUILayout.TextField("Toggle Menu Name", _toggleMenuName);
-            GUILayout.Space(10);
-            _groupToggleMenuName = EditorGUILayout.TextField("GroupToggle Menu Name", _groupToggleMenuName);
             GUILayout.Space(10);
 
             _toggleReverse = EditorGUILayout.Toggle("토글 반전 (Toggle Reverse) ", _toggleReverse);
@@ -55,8 +52,7 @@ namespace Editor
                 ToggleData data = new ToggleData
                 {
                     toggleReverse = false,
-                    toggleMenuName = "Toggles",
-                    groupToggleMenuName = "GroupToggles"
+                    toggleMenuName = "Toggles"
                 };
 
                 string json = JsonUtility.ToJson(data, true);
@@ -66,7 +62,6 @@ namespace Editor
                 
                 _toggleReverse = false;
                 _toggleMenuName = "Toggles";
-                _groupToggleMenuName = "GroupToggles";
 
                 EditorUtility.DisplayDialog("Reset Settings / 설정 초기화", "Settings have been reset to default values.\n설정이 기본값으로 재설정되었습니다.", "OK");
             }
@@ -89,7 +84,6 @@ namespace Editor
                 ToggleData data = JsonUtility.FromJson<ToggleData>(json);
                 _toggleReverse = data.toggleReverse;
                 _toggleMenuName = data.toggleMenuName;
-                _groupToggleMenuName = data.groupToggleMenuName;
             }
         }
 
@@ -98,8 +92,7 @@ namespace Editor
             ToggleData data = new ToggleData
             {
                 toggleReverse = _toggleReverse,
-                toggleMenuName = _toggleMenuName,
-                groupToggleMenuName = _groupToggleMenuName
+                toggleMenuName = _toggleMenuName
             };
 
             string json = JsonUtility.ToJson(data, true);
@@ -114,7 +107,6 @@ namespace Editor
     {
         public bool toggleReverse;
         public string toggleMenuName;
-        public string groupToggleMenuName;
     }
 }
 #endif

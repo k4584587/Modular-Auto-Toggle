@@ -15,9 +15,7 @@ namespace Editor
     {
         private VRCAvatarDescriptor _avatarDescriptor;
         private Vector2 _scrollPosToggle;
-        private Vector2 _scrollPosGroupToggle;
         private Dictionary<string, bool> togglesToDelete = new Dictionary<string, bool>();
-        private Dictionary<string, bool> groupTogglesToDelete = new Dictionary<string, bool>();
         private List<string> warnedNames = new List<string>(); 
 
         [MenuItem("Hirami/Auto Toggle/Delete Toggle Objects", false, 0)]
@@ -27,7 +25,6 @@ namespace Editor
 
             // 초기화 로직 추가
             window.togglesToDelete.Clear();
-            window.groupTogglesToDelete.Clear();
             window.warnedNames.Clear();
 
             window.Show();
@@ -56,23 +53,6 @@ namespace Editor
                         togglesToDelete[toggleName] = currentState;
                         SaveToggleState(toggleName, currentState);
                     }
-                }
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
-
-                EditorGUILayout.BeginVertical(GUI.skin.box, GUILayout.MaxWidth(295), GUILayout.ExpandHeight(true));
-                EditorGUILayout.LabelField(ReadGroupToggleMenuNameSetting(), EditorStyles.boldLabel);
-                _scrollPosGroupToggle = EditorGUILayout.BeginScrollView(_scrollPosGroupToggle, GUILayout.ExpandHeight(true));
-                foreach (var groupToggleName in new List<string>(groupTogglesToDelete.Keys))
-                {EditorGUILayout.BeginHorizontal();
-                    bool currentState = EditorGUILayout.ToggleLeft(groupToggleName, groupTogglesToDelete[groupToggleName]);
-                    if (currentState != groupTogglesToDelete[groupToggleName])
-                    {
-                        groupTogglesToDelete[groupToggleName] = currentState;
-                        SaveToggleState(groupToggleName, currentState);
-                    }
-                    
-                    EditorGUILayout.EndHorizontal();
                 }
                 EditorGUILayout.EndScrollView();
                 EditorGUILayout.EndVertical();
@@ -113,20 +93,9 @@ namespace Editor
                     DestroyImmediate(togglesParent.gameObject);
                 }
                 
-                Transform groupTogglesParent = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
-                if (groupTogglesParent != null)
-                {
-                    foreach (Transform child in groupTogglesParent)
-                    {
-                        DeleteToggleState(child.name);
-                    }
-                    DestroyImmediate(groupTogglesParent.gameObject);
-                }
-                
-                DeleteAllFilesInFolder("Assets/Hirami/Toggle");
+                DeleteAllFilesInFolder("Assets/Hirami/Toggle/" + _avatarDescriptor.transform.name);
 
                 togglesToDelete.Clear();
-                groupTogglesToDelete.Clear();
             }
         }
 
@@ -134,7 +103,6 @@ namespace Editor
         private void LoadToggles()
         {
             togglesToDelete.Clear();
-            groupTogglesToDelete.Clear();
 
             Transform togglesParent = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
             if (togglesParent != null)
@@ -147,29 +115,6 @@ namespace Editor
                     }
                     else if (!warnedNames.Contains(child.name))
                     {
-                        if (EditorUtility.DisplayDialog("Duplicate Name Warning / 중복된 이름 경고",
-                                "A duplicate name was found: " + child.name + ".\nPlease change to a different name.\n\n중복된 이름이 발견되었습니다: " + child.name + ".\n다른 이름으로 변경해주세요.",
-                                "OK"))
-                        {
-                            warnedNames.Add(child.name);
-                        }
-                    }
-                }
-            }
-
-            // GroupToggle 부분에 대한 처리도 동일하게 적용합니다.
-            Transform groupTogglesParent = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting());
-            if (groupTogglesParent != null)
-            {
-                foreach (Transform child in groupTogglesParent)
-                {
-                    if (!groupTogglesToDelete.ContainsKey(child.name))
-                    {
-                        groupTogglesToDelete.Add(child.name, LoadToggleState(child.name));
-                    }
-                    else if (!warnedNames.Contains(child.name))
-                    {
-
                         if (EditorUtility.DisplayDialog("Duplicate Name Warning / 중복된 이름 경고",
                                 "A duplicate name was found: " + child.name + ".\nPlease change to a different name.\n\n중복된 이름이 발견되었습니다: " + child.name + ".\n다른 이름으로 변경해주세요.",
                                 "OK"))
@@ -220,7 +165,6 @@ namespace Editor
         private void DeleteToggle()
         {
             bool togglesRemoved = false;
-            bool groupTogglesRemoved = false;
             
             
 
@@ -259,7 +203,7 @@ namespace Editor
                                     if (!string.IsNullOrEmpty(fullPath))
                                     {
                                         Debug.Log("File found: " + fullPath);
-                                        DeleteAnimationFiles(toggleName.Key, "" + rootObject.name + "_toggle_fx", "toggle", fullPath, toggleGuidParamName);
+                                        DeleteAnimationFiles(toggleName.Key, "/" + rootObject.name + "/toggle_fx", "toggle", fullPath, toggleGuidParamName);
                                         DestroyImmediate(toggleObj.gameObject);
                                         DeleteToggleState(toggleName.Key);
                                         togglesRemoved = true;
@@ -277,39 +221,7 @@ namespace Editor
                         }
                     }
                 }
-
-                foreach (var groupToggleName in groupTogglesToDelete)
-                {
-                    
-                    if (groupToggleName.Value)
-                    {
-                        var groupToggleObj = _avatarDescriptor.transform.Find(ReadGroupToggleMenuNameSetting() + "/" + groupToggleName.Key);
-                        if (groupToggleObj != null)
-                        {
-                           
-                            var rootObject = groupToggleObj.transform.root.gameObject;      
-                            
-                            ModularAvatarParameters maParams = groupToggleObj.GetComponent<ModularAvatarParameters>(); //group Toggle 오브젝트 모듈러 컴포넌트 정보 가져오기
-                            if (maParams != null)
-                            {
-                                
-                                var paramName = maParams.parameters;
-                                foreach (var paramConfig in maParams.parameters)
-                                {
-                                    var toggleGuidParamName = paramConfig.nameOrPrefix;
-                                    string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle").Replace("_off.anim", "");
-                                    DeleteAnimationFiles(groupToggleName.Key, "" + rootObject.name + "_group_toggle_fx", "group", fullPath, toggleGuidParamName);
-                                    DestroyImmediate(groupToggleObj.gameObject);
-                                    groupTogglesRemoved = true;
-                                    AssetDatabase.Refresh();
-                                    
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (togglesRemoved || groupTogglesRemoved)
+                if (togglesRemoved )
                 {
                     LoadToggles();
                 }
@@ -319,47 +231,19 @@ namespace Editor
         //애니메이션 파일 삭제
         private void DeleteAnimationFiles(string toggleName, string controllerType, string type, string animePath, string hashName)
         {
+            Debug.Log("Delete toggleName :: " + toggleName);
+
+            //string pathToAnimations = $"Assets/Hirami/Toggle/";
+            string animationFileOn = $"" + animePath + "_on.anim";
+            string animationFileOff = $"" + animePath + "_off.anim";
             
-     
-            
-            if (type.Equals("group"))
-            {
-               
-                    string animationFileOn = $"" + animePath + "_on.anim";
-                    string animationFileOff = $"" + animePath + "_off.anim";
-                    
-              
-                    string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
-                    
-                    
-                    DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "group");
-                    DeleteAssetIfItExists(animationFileOn);
-                    DeleteAssetIfItExists(animationFileOff);
-                    
-            }
-            else
-            {
-                if (!toggleName.StartsWith("Toggle_"))
-                {
-                    toggleName = "Toggle_" + toggleName;
-                }
 
-                Debug.Log("Delete toggleName :: " + toggleName);
+            Debug.Log("Delete animationFileOn :: " + animationFileOn);
 
-                //string pathToAnimations = $"Assets/Hirami/Toggle/";
-                string animationFileOn = $"" + animePath + "_on.anim";
-                string animationFileOff = $"" + animePath + "_off.anim";
-                
-
-                Debug.Log("Delete animationFileOn :: " + animationFileOn);
-
-                string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
-                DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "toggle");
-                DeleteAssetIfItExists(animationFileOn);
-                DeleteAssetIfItExists(animationFileOff);
-
-               
-            }
+            string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
+            DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "toggle");
+            DeleteAssetIfItExists(animationFileOn);
+            DeleteAssetIfItExists(animationFileOff);
         }
 
 
@@ -430,19 +314,6 @@ namespace Editor
                 string json = File.ReadAllText(jsonFilePath);
                 var settings = JsonUtility.FromJson<ToggleSettings>(json);
                 return settings.toggleMenuName;
-            }
-
-            return "";
-        }
-        
-        private static string ReadGroupToggleMenuNameSetting()
-        {
-            string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
-            if (File.Exists(jsonFilePath))
-            {
-                string json = File.ReadAllText(jsonFilePath);
-                var settings = JsonUtility.FromJson<ToggleSettings>(json);
-                return settings.groupToggleMenuName;
             }
 
             return "";

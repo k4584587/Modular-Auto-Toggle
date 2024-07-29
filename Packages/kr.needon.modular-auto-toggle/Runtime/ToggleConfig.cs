@@ -18,7 +18,6 @@ public class ToggleConfig : AvatarTagComponent
         public string version;
         public bool toggleReverse;
         public string toggleMenuName;
-        public string groupToggleMenuName;
     }
 
     public SetToggleConfig toggleConfig;
@@ -48,10 +47,9 @@ public class ToggleConfig : AvatarTagComponent
         else
         {
             // 파일이 없는 경우 기본값 설정
-            toggleConfig.version = "1.0.70";
+            toggleConfig.version = "1.0.71";
             toggleConfig.toggleReverse = false;
             toggleConfig.toggleMenuName = "Toggles";
-            toggleConfig.groupToggleMenuName = "GroupToggles";
             Debug.LogWarning("Settings file not found. Default settings applied.");
         }
     }

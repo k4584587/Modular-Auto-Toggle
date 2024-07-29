@@ -127,7 +127,7 @@ public class DeleteToggleEditor : UnityEditor.Editor
                 DestroyImmediate(togglesParent.gameObject);
             }
                 
-            DeleteAllFilesInFolder("Assets/Hirami/Toggle");
+            DeleteAllFilesInFolder("Assets/Hirami/Toggle/" + _avatarDescriptor.transform.name);
 
             togglesToDelete.Clear();
         }
@@ -141,8 +141,8 @@ public class DeleteToggleEditor : UnityEditor.Editor
             foreach (string file in files)
             {
                 string fileName = System.IO.Path.GetFileName(file);
-                // "Group" 문구가 포함되지 않고, setting.json 파일도 아니며, .meta 확장자도 아닌 파일만 삭제
-                if (!fileName.Contains("Group") && !fileName.Contains("group") && fileName != "setting.json" && System.IO.Path.GetExtension(file) != ".meta")
+                // setting.json 파일도 아니며, .meta 확장자도 아닌 파일만 삭제
+                if (fileName != "setting.json" && System.IO.Path.GetExtension(file) != ".meta")
                 {
                     AssetDatabase.DeleteAsset(file);
                 }
@@ -219,11 +219,11 @@ public class DeleteToggleEditor : UnityEditor.Editor
                             foreach (var paramConfig in maParams.parameters)
                             {
                                 var toggleGuidParamName = paramConfig.nameOrPrefix;
-                                string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle").Replace("_off.anim", "");
+                                string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle/"+rootObject.name).Replace("_off.anim", "");
 
                                 if (!string.IsNullOrEmpty(fullPath))
                                 {
-                                    DeleteAnimationFiles(toggleName.Key, "" + rootObject.name + "_toggle_fx", "toggle", fullPath, toggleGuidParamName);
+                                    DeleteAnimationFiles(toggleName.Key, "/" + rootObject.name + "/toggle_fx", fullPath, toggleGuidParamName);
                                     DestroyImmediate(toggleObj.gameObject);
                                     DeleteToggleState(toggleName.Key);
                                     togglesRemoved = true;
@@ -242,13 +242,8 @@ public class DeleteToggleEditor : UnityEditor.Editor
         }
     }
 
-    private void DeleteAnimationFiles(string toggleName, string controllerType, string type, string animePath, string hashName)
+    private void DeleteAnimationFiles(string toggleName, string controllerType, string animePath, string hashName)
     {
-        if (!toggleName.StartsWith("Toggle_"))
-        {
-            toggleName = "Toggle_" + toggleName;
-        }
-
         string animationFileOn = $"" + animePath + "_on.anim";
         string animationFileOff = $"" + animePath + "_off.anim";
         string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
