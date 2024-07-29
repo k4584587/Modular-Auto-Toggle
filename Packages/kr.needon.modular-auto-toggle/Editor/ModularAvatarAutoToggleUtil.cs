@@ -18,6 +18,7 @@ namespace Editor
     {
         private static readonly string folderPath = "Assets/Hirami/Toggle";
         private static readonly string settingPath = "Assets/Hirami/Toggle/setting.json";
+        private static bool toggleSaved = true;
         private static bool toggleReverse = false;
         private static string toggleMenuName = "Toggles";
 
@@ -164,7 +165,7 @@ namespace Editor
                 {
                     name = paramName, 
                     type = AnimatorControllerParameterType.Bool,
-                    defaultBool = true
+                    defaultBool = toggleSaved
                 });
             }
 
@@ -251,7 +252,7 @@ namespace Editor
                 nameOrPrefix = paramName,
                 syncType = ParameterSyncType.Bool,
                 defaultValue = 1,
-                saved = true
+                saved = toggleSaved
             });
         }
 
@@ -283,6 +284,7 @@ namespace Editor
         private static void ReadSetting()
         {
             ToggleSettings settings = File.Exists(settingPath) ? JsonUtility.FromJson<ToggleSettings>(File.ReadAllText(settingPath)) : new ToggleSettings();
+            toggleSaved = settings.toggleSaved;
             toggleReverse = settings.toggleReverse;
             toggleMenuName = settings.toggleMenuName ?? "Toggles";
             AssetDatabase.Refresh();
@@ -314,6 +316,7 @@ namespace Editor
 [System.Serializable]
 public class ToggleSettings
 {
+    public bool toggleSaved;
     public bool toggleReverse;
     public string toggleMenuName;
 }

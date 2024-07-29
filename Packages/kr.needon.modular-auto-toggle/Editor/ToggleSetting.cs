@@ -8,6 +8,7 @@ namespace Editor
 {
     public class ToggleSetting : EditorWindow
     {
+        private bool _toggleSaved;
         private bool _toggleReverse;
         private string _toggleMenuName = "Toggles"; 
         private const string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
@@ -28,6 +29,8 @@ namespace Editor
             _toggleMenuName = EditorGUILayout.TextField("Toggle Menu Name", _toggleMenuName);
             GUILayout.Space(10);
 
+            _toggleSaved = EditorGUILayout.Toggle("저장됨 (Toggle Saved) ", _toggleSaved);
+            GUILayout.Space(10);
             _toggleReverse = EditorGUILayout.Toggle("토글 반전 (Toggle Reverse) ", _toggleReverse);
             GUILayout.Space(10);
 
@@ -51,6 +54,7 @@ namespace Editor
             {
                 ToggleData data = new ToggleData
                 {
+                    toggleSaved = true,
                     toggleReverse = false,
                     toggleMenuName = "Toggles"
                 };
@@ -60,6 +64,7 @@ namespace Editor
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
                 
+                _toggleSaved = true;
                 _toggleReverse = false;
                 _toggleMenuName = "Toggles";
 
@@ -82,6 +87,7 @@ namespace Editor
             {
                 string json = File.ReadAllText(jsonFilePath);
                 ToggleData data = JsonUtility.FromJson<ToggleData>(json);
+                _toggleSaved = data.toggleSaved;
                 _toggleReverse = data.toggleReverse;
                 _toggleMenuName = data.toggleMenuName;
             }
@@ -91,6 +97,7 @@ namespace Editor
         {
             ToggleData data = new ToggleData
             {
+                toggleSaved = _toggleSaved,
                 toggleReverse = _toggleReverse,
                 toggleMenuName = _toggleMenuName
             };
@@ -105,6 +112,7 @@ namespace Editor
     [System.Serializable]
     public class ToggleData
     {
+        public bool toggleSaved;
         public bool toggleReverse;
         public string toggleMenuName;
     }
