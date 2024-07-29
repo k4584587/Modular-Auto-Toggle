@@ -222,7 +222,7 @@ namespace Runtime
                         }
 
                         // 초기화된 애니메이션 클립에서 블렌드 쉐이프 값을 제거합니다.
-                        if (!_applyToOnAnimation && onToggleExists)
+                        /* if (!_applyToOnAnimation && onToggleExists)
                         {
                             AnimationClip onClipToClear =
                                 AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath);
@@ -234,7 +234,7 @@ namespace Runtime
                             AnimationClip offClipToClear =
                                 AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath);
                             clearAllBlendShapeAnimations(offClipToClear, toggleItem);
-                        }
+                        }*/
                     }
                 }
             }
