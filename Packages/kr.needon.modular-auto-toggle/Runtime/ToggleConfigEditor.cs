@@ -6,7 +6,7 @@ using Runtime;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.68
+//v1.0.71
 [CustomEditor(typeof(ToggleConfig))]
 [InitializeOnLoad]
 public class ToggleConfigEditor : Editor
@@ -130,7 +130,7 @@ public class ToggleConfigEditor : Editor
 
         ToggleData data = new ToggleData
         {
-            version = targetObject.toggleConfig.version,
+            version = "1.0.71",
             toggleSaved = targetObject.toggleConfig.toggleSaved,
             toggleReverse = targetObject.toggleConfig.toggleReverse,
             toggleMenuName = targetObject.toggleConfig.toggleMenuName

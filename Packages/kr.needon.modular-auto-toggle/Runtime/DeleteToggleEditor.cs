@@ -11,7 +11,7 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
 
-//v1.0.68
+//v1.0.71
 [CustomEditor(typeof(DeleteToggle))]
 public class DeleteToggleEditor : UnityEditor.Editor
 {
