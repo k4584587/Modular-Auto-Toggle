@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -21,23 +20,68 @@ namespace Editor
         private static bool toggleSaved = true;
         private static bool toggleReverse = false;
         private static string toggleMenuName = "Toggles";
+        private static string componentName = null;
 
-       [MenuItem("GameObject/Create Toggle Items", false, 0)]
+        // componentName 변수를 EditorPrefs에 저장하는 함수
+        private static void SaveComponentNameToEditorPrefs(string name)
+        {
+            EditorPrefs.SetString("AutoToggleCreator_componentName", name);
+        }
+
+        // componentName 변수를 EditorPrefs에서 불러오는 함수
+        private static void LoadComponentNameFromEditorPrefs()
+        {
+            if (EditorPrefs.HasKey("AutoToggleCreator_componentName"))
+            {
+                componentName = EditorPrefs.GetString("AutoToggleCreator_componentName");
+            }
+        }
+
+        [MenuItem("GameObject/Create Toggle Items", false, 0)]
         private static void CreateToggleItems()
         {
+            // 클래스 초기화 시 componentName을 불러옴
+            LoadComponentNameFromEditorPrefs();
+
             GameObject[] selectedObjects = Selection.gameObjects;
             GameObject rootObject = null;
-            string targetFolder = "";
-            
+            rootObject = selectedObjects[0].transform.root.gameObject;
+            string targetFolder = folderPath + "/" + rootObject.name;
+            Debug.Log("targetFolderPath :: " + targetFolder);
+
+            // targetFolder가 없으면 componentName을 null로 설정하여 다시 입력을 받도록 함
+            if (!AssetDatabase.IsValidFolder(targetFolder))
+            {
+                componentName = null;
+            }
+
+            // componentName이 null이거나 비어있으면 입력 창을 띄움
+            if (string.IsNullOrEmpty(componentName))
+            {
+                componentName = ComponentNameWindow.OpenComponentNameDialog();
+                if (string.IsNullOrEmpty(componentName))
+                {
+                    Debug.LogWarning("No name entered for the toggle item. Operation cancelled.");
+                    return; // 사용자가 이름을 입력하지 않으면 중단
+                }
+
+                // componentName을 설정할 때마다 저장
+                SaveComponentNameToEditorPrefs(componentName);
+            }
+
+            // 사용자 입력값을 ReadToggleMenuNameSetting에 설정
+            SetToggleMenuNameSetting(componentName);
+
             if (selectedObjects.Length <= 0)
             {
-                Debug.LogError("The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 오브젝트들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.");
-                EditorUtility.DisplayDialog("Error", "The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 오브젝트들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.", "OK");
+                Debug.LogError(
+                    "The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 오브젝트들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.");
+                EditorUtility.DisplayDialog("Error",
+                    "The selected GameObjects must be part of an avatar with a VRC Avatar Descriptor.\n선택된 오브젝트들은 VRC 아바타 디스크립터를 가진 아바타의 일부여야 합니다.",
+                    "OK");
                 return;
             }
 
-            rootObject = selectedObjects[0].transform.root.gameObject;
-            
             if (!rootObject)
             {
                 Debug.LogError("The selected GameObject has no parent.\n선택한 오브젝트에 부모 오브젝트가 없습니다.");
@@ -46,7 +90,7 @@ namespace Editor
             }
 
             ReadSetting();
-            
+
             targetFolder = folderPath + "/" + rootObject.name;
 
             if (!AssetDatabase.IsValidFolder(targetFolder))
@@ -77,28 +121,53 @@ namespace Editor
 
                 // 로딩 바 종료
                 EditorUtility.ClearProgressBar();
-                EditorUtility.DisplayDialog("Toggle Items Creation", "All toggle items have been created successfully.\n\n모든 토글 아이템이 성공적으로 생성되었습니다.",
+                EditorUtility.DisplayDialog("Toggle Items Creation",
+                    "All toggle items have been created successfully.\n\n모든 토글 아이템이 성공적으로 생성되었습니다.",
                     "OK");
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             };
         }
-        
+
+        private static void SetToggleMenuNameSetting(string name)
+        {
+            string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
+            ToggleSettings settings;
+            if (File.Exists(jsonFilePath))
+            {
+                string json = File.ReadAllText(jsonFilePath);
+                settings = JsonUtility.FromJson<ToggleSettings>(json);
+            }
+            else
+            {
+                settings = new ToggleSettings();
+            }
+
+            settings.toggleMenuName = name;
+            string updatedJson = JsonUtility.ToJson(settings, true);
+            File.WriteAllText(jsonFilePath, updatedJson);
+            AssetDatabase.Refresh();
+
+            // Save settings to EditorPrefs
+            SaveSettingsToEditorPrefs(settings);
+        }
+
         private static void CreateToggleObject(GameObject[] items, GameObject rootObject, string targetFolder)
         {
             var toggleTransform = rootObject.transform.Find(toggleMenuName);
             var toggleGameObject = !toggleTransform ? null : toggleTransform.gameObject;
             string groupName = string.Join("_", items.Select(obj => obj.name));
-            string paramName =  Md5Hash(rootObject.name + "_" + groupName);
+            string paramName = Md5Hash(rootObject.name + "_" + groupName);
             int currentStep = 0, totalSteps = 6;
-            
+
             UpdateProgressBar(currentStep++, totalSteps, "Initializing...");
-            if(!toggleGameObject || toggleGameObject.GetComponentsInChildren<ToggleConfig>().Length <= 0)
+            if (!toggleGameObject || toggleGameObject.GetComponentsInChildren<ToggleConfig>().Length <= 0)
             {
                 toggleGameObject = new GameObject(toggleMenuName);
                 toggleTransform = toggleGameObject.transform;
             }
+
             toggleTransform.SetParent(rootObject.transform, false);
 
             UpdateProgressBar(currentStep++, totalSteps, "Creating Toggle Object...");
@@ -116,8 +185,9 @@ namespace Editor
             var mergeAnimator = toggleGameObject.GetComponent<ModularAvatarMergeAnimator>();
 
             UpdateProgressBar(currentStep++, totalSteps, "Configure MA Settings...");
-            
-            if (!mergeAnimator){
+
+            if (!mergeAnimator)
+            {
                 toggleGameObject.AddComponent<ModularAvatarMenuInstaller>();
                 ConfigureParentMenuItem(toggleGameObject);
                 mergeAnimator = toggleGameObject.AddComponent<ModularAvatarMergeAnimator>();
@@ -128,20 +198,23 @@ namespace Editor
             mergeAnimator.pathMode = MergeAnimatorPathMode.Absolute;
             mergeAnimator.matchAvatarWriteDefaults = true;
             mergeAnimator.deleteAttachedAnimator = true;
-            
+
             UpdateProgressBar(currentStep++, totalSteps, "Complete!");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
-        
-        private static AnimatorController ConfigureAnimator(GameObject[] items, GameObject rootObject, string targetFolder, string groupName, string paramName){
+
+        private static AnimatorController ConfigureAnimator(GameObject[] items, GameObject rootObject,
+            string targetFolder, string groupName, string paramName)
+        {
             string animatorPath = targetFolder + "/toggle_fx.controller";
-            
+
             AnimatorController toggleAnimator = null;
-            
-            if((toggleAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(animatorPath)) == null){
-                toggleAnimator = AnimatorController.CreateAnimatorControllerAtPath(animatorPath);         
-                toggleAnimator.RemoveLayer(0); 
+
+            if ((toggleAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(animatorPath)) == null)
+            {
+                toggleAnimator = AnimatorController.CreateAnimatorControllerAtPath(animatorPath);
+                toggleAnimator.RemoveLayer(0);
             }
 
             AnimatorStateMachine stateMachine = new AnimatorStateMachine
@@ -150,7 +223,8 @@ namespace Editor
                 hideFlags = HideFlags.HideInHierarchy
             };
 
-            if(toggleAnimator.layers.All(l => l.name != paramName)){
+            if (toggleAnimator.layers.All(l => l.name != paramName))
+            {
                 AssetDatabase.AddObjectToAsset(stateMachine, toggleAnimator);
                 toggleAnimator.AddLayer(new AnimatorControllerLayer
                 {
@@ -160,10 +234,11 @@ namespace Editor
                 });
             }
 
-            if (toggleAnimator.parameters.All(p => p.name != paramName)){
+            if (toggleAnimator.parameters.All(p => p.name != paramName))
+            {
                 toggleAnimator.AddParameter(new AnimatorControllerParameter
                 {
-                    name = paramName, 
+                    name = paramName,
                     type = AnimatorControllerParameterType.Bool,
                     defaultBool = toggleSaved
                 });
@@ -179,8 +254,10 @@ namespace Editor
 
             stateMachine.defaultState = offState;
 
-            AnimatorConditionMode conditionModeForOn = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
-            AnimatorConditionMode conditionModeForOff = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
+            AnimatorConditionMode conditionModeForOn =
+                toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
+            AnimatorConditionMode conditionModeForOff =
+                toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
 
             AnimatorStateTransition transitionToOn = offState.AddTransition(onState);
             transitionToOn.hasExitTime = false;
@@ -201,12 +278,14 @@ namespace Editor
             return toggleAnimator;
         }
 
-        private static AnimationClip RecordState(GameObject[] items, GameObject rootObject, string folderPath, string groupName, bool activation)
+
+        private static AnimationClip RecordState(GameObject[] items, GameObject rootObject, string folderPath,
+            string groupName, bool activation)
         {
             string stateName = activation ? "on" : "off";
             string clipName = $"{groupName}_" + Md5Hash(rootObject.name + "_" + groupName) + $"_{stateName}";
             string fullPath = $"{folderPath}/Toggle_{clipName}.anim";
-            
+
             var existingClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(fullPath);
             if (existingClip != null)
             {
@@ -226,10 +305,13 @@ namespace Editor
             var clip = new AnimationClip { name = clipName };
             var curve = new AnimationCurve();
             curve.AddKey(0f, activation ? 1f : 0f);
-            
+
             foreach (GameObject obj in items)
             {
-                AnimationUtility.SetEditorCurve(clip, EditorCurveBinding.FloatCurve(AnimationUtility.CalculateTransformPath(obj.transform, rootObject.transform), typeof(GameObject), "m_IsActive"), curve);
+                AnimationUtility.SetEditorCurve(clip,
+                    EditorCurveBinding.FloatCurve(
+                        AnimationUtility.CalculateTransformPath(obj.transform, rootObject.transform),
+                        typeof(GameObject), "m_IsActive"), curve);
             }
 
             AssetDatabase.CreateAsset(clip, fullPath);
@@ -239,14 +321,13 @@ namespace Editor
             return clip;
         }
 
-
         // Modular Avatar
         private static void ConfigureAvatarParameters(GameObject obj, string paramName)
         {
             var avatarParameters = obj.AddComponent<ModularAvatarParameters>();
 
             if (avatarParameters.parameters.Any(p => p.nameOrPrefix == paramName)) return;
-            
+
             avatarParameters.parameters.Add(new ParameterConfig
             {
                 nameOrPrefix = paramName,
@@ -263,7 +344,10 @@ namespace Editor
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.Toggle;
             menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = paramName }; //모듈러 파라미터 이름 설정
-            menuItem.Control.icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");; // 메뉴 아이콘 설정
+            menuItem.Control.icon =
+                AssetDatabase.LoadAssetAtPath<Texture2D>(
+                    "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
+            ; // 메뉴 아이콘 설정
         }
 
         private static void ConfigureParentMenuItem(GameObject obj)
@@ -275,19 +359,26 @@ namespace Editor
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.SubMenu;
             menuItem.MenuSource = SubmenuSource.Children;
-            menuItem.Control.icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");; // 메뉴 아이콘 설정
+            menuItem.Control.icon =
+                AssetDatabase.LoadAssetAtPath<Texture2D>(
+                    "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
+            ; // 메뉴 아이콘 설정
         }
-
 
         // Settings
 
         private static void ReadSetting()
         {
-            ToggleSettings settings = File.Exists(settingPath) ? JsonUtility.FromJson<ToggleSettings>(File.ReadAllText(settingPath)) : new ToggleSettings();
+            ToggleSettings settings = File.Exists(settingPath)
+                ? JsonUtility.FromJson<ToggleSettings>(File.ReadAllText(settingPath))
+                : new ToggleSettings();
             toggleSaved = settings.toggleSaved;
             toggleReverse = settings.toggleReverse;
             toggleMenuName = settings.toggleMenuName ?? "Toggles";
             AssetDatabase.Refresh();
+
+            // Load settings from EditorPrefs
+            LoadSettingsFromEditorPrefs();
         }
 
         private static string Md5Hash(string input)
@@ -296,10 +387,11 @@ namespace Editor
             byte[] hashBytes = md5.ComputeHash(Encoding.ASCII.GetBytes(input));
 
             StringBuilder sb = new StringBuilder();
-            foreach (byte b in hashBytes){
+            foreach (byte b in hashBytes)
+            {
                 sb.Append(b.ToString("X2"));
             }
-            
+
             return sb.ToString();
         }
 
@@ -308,8 +400,31 @@ namespace Editor
             float progress = (float)currentStep / totalSteps;
             EditorUtility.DisplayProgressBar("Creating Toggle Items", message, progress);
         }
-        
 
+        private static void SaveSettingsToEditorPrefs(ToggleSettings settings)
+        {
+            EditorPrefs.SetBool("AutoToggleCreator_toggleSaved", settings.toggleSaved);
+            EditorPrefs.SetBool("AutoToggleCreator_toggleReverse", settings.toggleReverse);
+            EditorPrefs.SetString("AutoToggleCreator_toggleMenuName", settings.toggleMenuName);
+        }
+
+        private static void LoadSettingsFromEditorPrefs()
+        {
+            if (EditorPrefs.HasKey("AutoToggleCreator_toggleSaved"))
+            {
+                toggleSaved = EditorPrefs.GetBool("AutoToggleCreator_toggleSaved");
+            }
+
+            if (EditorPrefs.HasKey("AutoToggleCreator_toggleReverse"))
+            {
+                toggleReverse = EditorPrefs.GetBool("AutoToggleCreator_toggleReverse");
+            }
+
+            if (EditorPrefs.HasKey("AutoToggleCreator_toggleMenuName"))
+            {
+                toggleMenuName = EditorPrefs.GetString("AutoToggleCreator_toggleMenuName");
+            }
+        }
     }
 }
 

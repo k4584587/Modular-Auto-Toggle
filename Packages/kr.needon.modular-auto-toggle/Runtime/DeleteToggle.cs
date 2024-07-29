@@ -2,7 +2,7 @@
 using nadena.dev.modular_avatar.core;
 using UnityEngine;
 
-//v1.0.68
+//v1.0.71
 namespace Runtime
 {
     [DisallowMultipleComponent]

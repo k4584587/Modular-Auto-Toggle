@@ -6,7 +6,7 @@ using Runtime;
 using UnityEditor;
 using UnityEngine;
 
-//v1.0.68
+//v1.0.71
 [CustomEditor(typeof(ToggleConfig))]
 [InitializeOnLoad]
 public class ToggleConfigEditor : Editor
