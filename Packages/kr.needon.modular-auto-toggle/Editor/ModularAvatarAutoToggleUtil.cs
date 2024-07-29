@@ -431,7 +431,7 @@ namespace Editor
 [System.Serializable]
 public class ToggleSettings
 {
-    public bool toggleSaved;
+    public bool toggleSaved = true;
     public bool toggleReverse;
     public string toggleMenuName;
 }
