@@ -5,12 +5,38 @@ using System.Linq;
 using nadena.dev.modular_avatar.core;
 using UnityEditor;
 using UnityEngine;
+using ToggleTool.Global;
+using ToggleTool.Utils;
 
-namespace Runtime
+namespace ToggleTool.Runtime
 {
     [CustomEditor(typeof(ToggleItem))]
+    [InitializeOnLoad]
     public class ToggleItemEditor : UnityEditor.Editor
     {
+        static ToggleItemEditor()
+        {
+            // 유니티 에디터 로드 시 자동으로 호출되는 정적 생성자
+            EditorApplication.update += UpdateIcons;
+        }
+
+        private static void UpdateIcons()
+        {
+            // 모든 ToggleItem 인스턴스에 대해 아이콘 설정
+            var toggleItems = Resources.FindObjectsOfTypeAll<ToggleItem>();
+            foreach (var toggleItem in toggleItems)
+            {
+                var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(FilePaths.PACKAGE_RESOURCES_PATH + FilePaths.IMAGE_NAME_TOGGLE_ON);;
+                if (icon != null)
+                {
+                    EditorGUIUtility.SetIconForObject(toggleItem, icon);
+                }
+            }
+
+            // 설정 완료 후 이벤트 해제
+            EditorApplication.update -= UpdateIcons;
+        }
+        
         private Texture2D _icon;
         private bool _applyToOnAnimation = true; // On 애니메이션에 적용할지 여부
         private bool _applyToOffAnimation = true; // Off 애니메이션에 적용할지 여부
@@ -20,14 +46,7 @@ namespace Runtime
 
         private void OnEnable()
         {
-            // 아이콘 로드
-            _icon = AssetDatabase.LoadAssetAtPath<Texture2D>(
-                "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
-            if (_icon != null)
-            {
-                EditorGUIUtility.SetIconForObject(target, _icon);
-            }
-
+            UpdateIcons();
             _applyToOnAnimation = EditorPrefs.GetBool(ApplyToOnAnimationKey, true);
             _applyToOffAnimation = EditorPrefs.GetBool(ApplyToOffAnimationKey, true);
         }
@@ -161,7 +180,7 @@ namespace Runtime
                     string rootName = menuItem.transform.root.name;
 
                     Debug.Log($"Parameter name: {parameterName}");
-                    string fullPath = FindFileByGuid(parameterName, "Assets/Hirami/Toggle/"+rootName).Replace("_off.anim", "");
+                    string fullPath = FindFileByGuid(parameterName, FilePaths.TARGET_FOLDER_PATH + "/" + rootName).Replace("_off.anim", "");
 
                     string onToggleAnimePath = fullPath + "_on.anim";
                     string offToggleAnimePath = fullPath + "_off.anim";
