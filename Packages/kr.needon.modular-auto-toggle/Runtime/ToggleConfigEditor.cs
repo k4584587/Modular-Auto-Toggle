@@ -14,7 +14,7 @@ namespace ToggleTool.Runtime
     //v1.0.71
     [CustomEditor(typeof(ToggleConfig))]
     [InitializeOnLoad]
-    public class ToggleConfigEditor : Editor
+    public class ToggleConfigEditor : UnityEditor.Editor
     {
         private bool _toggleSaved;
         private bool _toggleReverse;
