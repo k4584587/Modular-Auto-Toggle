@@ -336,7 +336,7 @@ namespace ToggleTool.Editor
                 saved = toggleSaved
             });
         }
-
+        
         private static void ConfigureMenuItem(GameObject obj, string paramName)
         {
             var menuItem = obj.AddComponent<ModularAvatarMenuItem>();
@@ -358,9 +358,8 @@ namespace ToggleTool.Editor
             menuItem.MenuSource = SubmenuSource.Children;
             menuItem.Control.icon = ImageLoader.instance["ToggleON"].iconTexture; // 메뉴 아이콘 설정
         }
-
+        
         // Settings
-
         private static void ReadSetting()
         {
             ToggleConfigModel settings = File.Exists(FilePaths.JSON_FILE_PATH)

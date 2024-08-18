@@ -16,7 +16,7 @@ namespace ToggleTool.Utils
             { "ToggleON", new ImageLoader(FilePaths.IMAGE_NAME_TOGGLE_ON) },
             { "ToggleOFF", new ImageLoader(FilePaths.IMAGE_NAME_TOGGLE_OFF) }
         };
-
+        
         private Texture2D _iconTexture;  // 로드된 텍스처를 저장할 필드
 
         public string Filename { get; private set; }
@@ -25,11 +25,6 @@ namespace ToggleTool.Utils
         {
             get
             {
-                if (_iconTexture == null)
-                {
-                    Debug.LogWarning($"iconTexture is null, attempting to reload: {Filename}");
-                    LoadImage(Filename);
-                }
                 return _iconTexture;
             }
             private set
