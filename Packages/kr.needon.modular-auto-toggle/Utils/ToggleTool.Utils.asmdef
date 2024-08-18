@@ -1,0 +1,16 @@
+{
+    "name": "ToggleTool.Utils",
+    "rootNamespace": "",
+    "references": [
+        "GUID:ca1569fa4c816a340a523f4af3095a28"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

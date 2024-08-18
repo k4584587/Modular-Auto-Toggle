@@ -8,11 +8,13 @@
         "GUID:fe747755f7b44e048820525b07f9b956",
         "GUID:5718fb738711cd34ea54e9553040911d",
         "GUID:3456780c4fb2d324ab9c633d6f1b0ddb",
-        "GUID:80279bee821366141b3343282740a3af",
         "GUID:6e9c6119ac4eb334284fb7b4bc6d1f05",
         "GUID:f51ebe6a0ceec4240a699833d6309b23",
         "GUID:b906909fcc54f634db50f2cad0f988d9",
-        "GUID:901e56b065a857d4483a77f8cae73588"
+        "GUID:ca1569fa4c816a340a523f4af3095a28",
+        "GUID:56154813f0612764ea2a12ecb4de2e84",
+        "GUID:60aabaee02d3fdb4a87f9f16fcd704a5",
+        "GUID:80279bee821366141b3343282740a3af"
     ],
     "includePlatforms": [
         "Editor"
@@ -26,8 +28,7 @@
         "VRCSDK3A-Editor.dll",
         "VRC.Utility.dll",
         "VRCCore-Editor.dll",
-        "VRCSDKBase-Editor.dll",
-        ""
+        "VRCSDKBase-Editor.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],

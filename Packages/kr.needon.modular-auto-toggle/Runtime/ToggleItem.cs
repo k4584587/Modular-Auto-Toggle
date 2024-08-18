@@ -5,22 +5,24 @@ using System.Linq;
 using nadena.dev.modular_avatar.core;
 using UnityEngine;
 
-//v1.0.71
-[DisallowMultipleComponent]
-[AddComponentMenu("Hirami/Toggle/ToggleItem")]
-public class ToggleItem : AvatarTagComponent
+namespace ToggleTool.Runtime
 {
-    public Texture2D _icon;
-        
-    [Serializable]
-    public struct SetBlendShape
+    //v1.0.71
+    [DisallowMultipleComponent]
+    public class ToggleItem : AvatarTagComponent
     {
-        public SkinnedMeshRenderer SkinnedMesh;
-        public string name;
-        public int value;
-    }
+        public Texture2D _icon;
+        
+        [Serializable]
+        public struct SetBlendShape
+        {
+            public SkinnedMeshRenderer SkinnedMesh;
+            public string name;
+            public int value;
+        }
 
-    [SerializeField] private List<SetBlendShape> _blendShapesToChange = new List<SetBlendShape>();
-    public IEnumerable<SetBlendShape> BlendShapesToChange => _blendShapesToChange.Where(e => e.SkinnedMesh != null);
+        [SerializeField] private List<SetBlendShape> _blendShapesToChange = new List<SetBlendShape>();
+        public IEnumerable<SetBlendShape> BlendShapesToChange => _blendShapesToChange.Where(e => e.SkinnedMesh != null);
+    }
 }
 #endif

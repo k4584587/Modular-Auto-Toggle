@@ -2,57 +2,50 @@
 using System;
 using System.IO;
 using nadena.dev.modular_avatar.core;
+using ToggleTool.Global;
+using ToggleTool.Models;
 using UnityEngine;
+using Version = ToggleTool.Global.Version;
 
-//v1.0.71
-[DisallowMultipleComponent]
-[AddComponentMenu("Hirami/Toggle/ToggleConfig")]
-public class ToggleConfig : AvatarTagComponent
+namespace ToggleTool.Runtime
 {
-        
-    public Texture2D _icon;
-        
-    [Serializable]
-    public struct SetToggleConfig
+    //v1.0.71
+    [DisallowMultipleComponent]
+    public class ToggleConfig : AvatarTagComponent
     {
-        public string version;
-        public bool toggleSaved;
-        public bool toggleReverse;
-        public string toggleMenuName;
-    }
-
-    public SetToggleConfig toggleConfig;
-        
-    private void Reset()
-    {
-        // 기본값 설정
-        LoadConfigFromFile();
-    }
-
-    public void ApplyConfig(SetToggleConfig config)
-    {
-        toggleConfig = config;
-        // 필요한 경우 추가 로직 작성
-    }
-
-    public void LoadConfigFromFile()
-    {
-        string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
-        if (File.Exists(jsonFilePath))
+            
+        public Texture2D _icon;
+        public ToggleConfigModel toggleConfig;
+            
+        private void Reset()
         {
-            string json = File.ReadAllText(jsonFilePath);
-            SetToggleConfig config = JsonUtility.FromJson<SetToggleConfig>(json);
-            ApplyConfig(config);
-            Debug.Log("Settings loaded from JSON file.");
+            // 기본값 설정
+            LoadConfigFromFile();
         }
-        else
+
+        public void ApplyConfig(ToggleConfigModel config)
         {
-            // 파일이 없는 경우 기본값 설정
-            toggleConfig.version = "1.0.71";
-            toggleConfig.toggleSaved = true;
-            toggleConfig.toggleReverse = false;
-            toggleConfig.toggleMenuName = "Toggles";
-            Debug.LogWarning("Settings file not found. Default settings applied.");
+            toggleConfig = config;
+            // 필요한 경우 추가 로직 작성
+        }
+
+        public void LoadConfigFromFile()
+        {
+            if (File.Exists(FilePaths.JSON_FILE_PATH))
+            {
+                string json = File.ReadAllText(FilePaths.JSON_FILE_PATH);
+                ToggleConfigModel config = JsonUtility.FromJson<ToggleConfigModel>(json);
+                ApplyConfig(config);
+                Debug.Log("Settings loaded from JSON file.");
+            }
+            else
+            {
+                // 파일이 없는 경우 기본값 설정
+                toggleConfig.toggleSaved = true;
+                toggleConfig.toggleReverse = false;
+                toggleConfig.toggleMenuName = Components.DEFAULT_COMPONENT_NAME;
+                Debug.LogWarning("Settings file not found. Default settings applied.");
+            }
         }
     }
 }

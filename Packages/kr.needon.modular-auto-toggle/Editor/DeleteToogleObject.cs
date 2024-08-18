@@ -7,9 +7,11 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
+using ToggleTool.Global;
+using ToggleTool.Models;
 
 //v1.0.68
-namespace Editor
+namespace ToggleTool.Editor
 {
     public class DeleteToggleObjects : EditorWindow
     {
@@ -79,8 +81,8 @@ namespace Editor
         {
             if (EditorUtility.DisplayDialog("Delete All Confirmation",
                                             "Are you sure you want to delete all toggles, group toggles, and their animations?",
-                                            "Yes",
-                                            "No"))
+                                            Messages.DIALOG_BUTTON_YES,
+                                            Messages.DIALOG_BUTTON_NO))
             {
                 
                 Transform togglesParent = _avatarDescriptor.transform.Find(ReadToggleMenuNameSetting());
@@ -93,7 +95,7 @@ namespace Editor
                     DestroyImmediate(togglesParent.gameObject);
                 }
                 
-                DeleteAllFilesInFolder("Assets/Hirami/Toggle/" + _avatarDescriptor.transform.name);
+                DeleteAllFilesInFolder(FilePaths.TARGET_FOLDER_PATH + "/" + _avatarDescriptor.transform.name);
 
                 togglesToDelete.Clear();
             }
@@ -117,7 +119,7 @@ namespace Editor
                     {
                         if (EditorUtility.DisplayDialog("Duplicate Name Warning / 중복된 이름 경고",
                                 "A duplicate name was found: " + child.name + ".\nPlease change to a different name.\n\n중복된 이름이 발견되었습니다: " + child.name + ".\n다른 이름으로 변경해주세요.",
-                                "OK"))
+                                Messages.DIALOG_BUTTON_OK))
                         {
                             warnedNames.Add(child.name);
                         }
@@ -170,8 +172,8 @@ namespace Editor
 
             if (EditorUtility.DisplayDialog("Delete Confirmation",
                                             "Are you sure you want to delete the selected toggles and their animations?",
-                                            "Yes",
-                                            "No"))
+                                            Messages.DIALOG_BUTTON_YES,
+                                            Messages.DIALOG_BUTTON_NO))
             {
                 foreach (var toggleName in togglesToDelete)
                 {
@@ -198,7 +200,7 @@ namespace Editor
                                     
                                     var toggleGuidParamName = paramConfig.nameOrPrefix;
                                     
-                                    string fullPath = FindFileByGuid(toggleGuidParamName, "Assets/Hirami/Toggle").Replace("_off.anim", "");
+                                    string fullPath = FindFileByGuid(toggleGuidParamName, FilePaths.TARGET_FOLDER_PATH).Replace("_off.anim", "");
                                     
                                     if (!string.IsNullOrEmpty(fullPath))
                                     {
@@ -240,7 +242,7 @@ namespace Editor
 
             Debug.Log("Delete animationFileOn :: " + animationFileOn);
 
-            string animatorControllerPath = $"Assets/Hirami/Toggle/{controllerType}.controller";
+            string animatorControllerPath = FilePaths.TARGET_FOLDER_PATH + $"/{controllerType}.controller";
             DeleteStatesAndParametersFromAnimator(animatorControllerPath, hashName, toggleName, "toggle");
             DeleteAssetIfItExists(animationFileOn);
             DeleteAssetIfItExists(animationFileOff);
@@ -308,11 +310,10 @@ namespace Editor
         
         private static string ReadToggleMenuNameSetting()
         {
-            string jsonFilePath = "Assets/Hirami/Toggle/setting.json";
-            if (File.Exists(jsonFilePath))
+            if (File.Exists(FilePaths.JSON_FILE_PATH))
             {
-                string json = File.ReadAllText(jsonFilePath);
-                var settings = JsonUtility.FromJson<ToggleSettings>(json);
+                string json = File.ReadAllText(FilePaths.JSON_FILE_PATH);
+                ToggleConfigModel settings = JsonUtility.FromJson<ToggleConfigModel>(json);
                 return settings.toggleMenuName;
             }
 

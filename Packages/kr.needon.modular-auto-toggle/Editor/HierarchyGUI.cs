@@ -1,69 +1,72 @@
 ﻿#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
-using Runtime;
+using ToggleTool.Runtime;
 
-//v1.0.68
-public static class HierarchyGUI
+namespace ToggleTool.Editor
 {
-    private const int ICON_SIZE = 16;
-
-    [InitializeOnLoadMethod]
-    private static void Initialize()
+    //v1.0.68
+    public static class HierarchyGUI
     {
-        EditorApplication.hierarchyWindowItemOnGUI += OnGUI;
-    }
+        private const int ICON_SIZE = 16;
 
-    private static void OnGUI(int instanceID, Rect selectionRect)
-    {
-        GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
-        if (gameObject == null)
+        [InitializeOnLoadMethod]
+        private static void Initialize()
         {
-            return;
+            EditorApplication.hierarchyWindowItemOnGUI += OnGUI;
         }
 
-        // ToggleItem 또는 ToggleConfig 컴포넌트가 있는지 확인
-        if (!HasToggleComponents(gameObject))
+        private static void OnGUI(int instanceID, Rect selectionRect)
         {
-            return;
-        }
-
-        // 최소 두 개 이상의 컴포넌트가 있는지 확인
-        Component[] components = gameObject.GetComponents<Component>();
-        if (components.Length <= 1)
-        {
-            return;
-        }
-
-        // 아이콘을 오른쪽 끝에 배치
-        Rect iconRect = new Rect(selectionRect.xMax - ICON_SIZE, selectionRect.y, ICON_SIZE, ICON_SIZE);
-
-        // ToggleItem 또는 ToggleConfig 컴포넌트에 대해 아이콘 표시
-        DrawIcons(components, iconRect);
-    }
-
-    private static bool HasToggleComponents(GameObject gameObject)
-    {
-        return gameObject.GetComponent<ToggleItem>() != null || gameObject.GetComponent<ToggleConfig>() != null;
-    }
-
-    private static void DrawIcons(Component[] components, Rect iconRect)
-    {
-        foreach (Component component in components)
-        {
-            if (component == null)
+            GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
+            if (gameObject == null)
             {
-                continue;
+                return;
             }
 
-            System.Type componentType = component.GetType();
-            if (componentType == typeof(ToggleItem) || componentType == typeof(ToggleConfig))
+            // ToggleItem 또는 ToggleConfig 컴포넌트가 있는지 확인
+            if (!HasToggleComponents(gameObject))
             {
-                Texture2D icon = AssetPreview.GetMiniThumbnail(component);
-                if (icon != null)
+                return;
+            }
+
+            // 최소 두 개 이상의 컴포넌트가 있는지 확인
+            Component[] components = gameObject.GetComponents<Component>();
+            if (components.Length <= 1)
+            {
+                return;
+            }
+
+            // 아이콘을 오른쪽 끝에 배치
+            Rect iconRect = new Rect(selectionRect.xMax - ICON_SIZE, selectionRect.y, ICON_SIZE, ICON_SIZE);
+
+            // ToggleItem 또는 ToggleConfig 컴포넌트에 대해 아이콘 표시
+            DrawIcons(components, iconRect);
+        }
+
+        private static bool HasToggleComponents(GameObject gameObject)
+        {
+            return gameObject.GetComponent<ToggleItem>() != null || gameObject.GetComponent<ToggleConfig>() != null;
+        }
+
+        private static void DrawIcons(Component[] components, Rect iconRect)
+        {
+            foreach (Component component in components)
+            {
+                if (component == null)
                 {
-                    GUI.DrawTexture(iconRect, icon);
-                    iconRect.x -= ICON_SIZE; // 여러 아이콘이 겹치지 않게 왼쪽으로 이동
+                    continue;
+                }
+
+                System.Type componentType = component.GetType();
+                if (componentType == typeof(ToggleItem) || componentType == typeof(ToggleConfig))
+                {
+                    Texture2D icon = AssetPreview.GetMiniThumbnail(component);
+                    if (icon != null)
+                    {
+                        GUI.DrawTexture(iconRect, icon);
+                        iconRect.x -= ICON_SIZE; // 여러 아이콘이 겹치지 않게 왼쪽으로 이동
+                    }
                 }
             }
         }
