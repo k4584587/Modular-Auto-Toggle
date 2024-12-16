@@ -13,7 +13,10 @@
         "GUID:5718fb738711cd34ea54e9553040911d",
         "GUID:ca1569fa4c816a340a523f4af3095a28",
         "GUID:56154813f0612764ea2a12ecb4de2e84",
-        "GUID:60aabaee02d3fdb4a87f9f16fcd704a5"
+        "GUID:60aabaee02d3fdb4a87f9f16fcd704a5",
+        "ToogleTool.Global",
+        "ToggleTool.Utils",
+        "ToggleTool.Models"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
