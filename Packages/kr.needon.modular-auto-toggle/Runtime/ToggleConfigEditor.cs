@@ -23,7 +23,6 @@ public class ToggleConfigEditor : Editor
     private Texture2D _icon;
     private ToggleConfig _toggleConfig;
 
-    // 기본값 "Toggles" (실제 사용은 _toggleConfig.toggleConfig.toggleMenuName)
     private static string toggleMenuName = "Toggles";
 
     private const string iconFilePath = "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png";
@@ -65,6 +64,7 @@ public class ToggleConfigEditor : Editor
 
     public override void OnInspectorGUI()
     {
+        // toggleConfig
         SerializedProperty toggleConfigProp = serializedObject.FindProperty("toggleConfig");
         if (toggleConfigProp != null)
         {
@@ -76,6 +76,10 @@ public class ToggleConfigEditor : Editor
         {
             EditorGUILayout.HelpBox("Cannot find 'toggleConfig' property.", MessageType.Error);
         }
+
+        EditorGUILayout.Space();
+
+        // 애니메이션 옵션 항목 삭제됨
 
         EditorGUILayout.Space();
 
@@ -95,7 +99,9 @@ public class ToggleConfigEditor : Editor
         serializedObject.ApplyModifiedProperties();
     }
 
-    // Always creates a new fx (AnimatorController) file
+    /// <summary>
+    /// 기존 fx 애니메이터를 삭제 후 새로 생성.
+    /// </summary>
     private static AnimatorController ConfigureAnimator(GameObject[] items, GameObject rootObject, string targetFolder, string groupName, string paramName)
     {
         string animatorPath = targetFolder + "/toggle_fx.controller";
@@ -122,12 +128,15 @@ public class ToggleConfigEditor : Editor
         return toggleAnimator;
     }
 
-    // Toggle Refresh 기능: targetGameObjects에 할당된 오브젝트들을 기준으로 애니메이션을 녹화
+    /// <summary>
+    /// Toggle Refresh: 기존 애니메이션/토글을 새로 갱신
+    /// on/off 애니메이션 파일은 삭제하지 않고 그대로 둔다.
+    /// </summary>
     private void ToggleRefresh()
     {
         const string baseFolder = "Assets/Hirami/Toggle";
         GameObject rootObject = _toggleConfig.gameObject.transform.root.gameObject;
-        
+
         string menuName = _toggleConfig.toggleConfig.toggleMenuName;
         Transform toggleTransform = rootObject.transform.Find(menuName);
         if (toggleTransform == null)
@@ -148,16 +157,17 @@ public class ToggleConfigEditor : Editor
                 "OK");
             return;
         }
-        
+
         string currentAvatarName = rootObject.name;
         string targetFolder = baseFolder + "/" + currentAvatarName;
-        
+
         if (!Directory.Exists(targetFolder))
         {
             Directory.CreateDirectory(targetFolder);
             AssetDatabase.Refresh();
         }
 
+        // MergeAnimator
         ModularAvatarMergeAnimator mergeAnimator = toggleGroup.GetComponent<ModularAvatarMergeAnimator>();
         if (mergeAnimator == null)
         {
@@ -165,8 +175,9 @@ public class ToggleConfigEditor : Editor
             ConfigureParentMenuItem(toggleGroup);
             mergeAnimator = toggleGroup.GetComponent<ModularAvatarMergeAnimator>();
         }
+
+        // 첫 번째 아이템 기준으로 fx Animator를 새로 생성
         {
-            // 첫 번째 토글 아이템을 기준으로 애니메이터 컨트롤러 생성
             ToggleItem firstItem = toggleItems[0];
             string groupName = firstItem.gameObject.name;
             string paramName = GetParameterNameFromToggle(firstItem.gameObject);
@@ -174,10 +185,10 @@ public class ToggleConfigEditor : Editor
             {
                 paramName = Md5Hash(rootObject.name + "_" + groupName);
             }
+
             GameObject[] itemsToRecord;
-            ToggleItem ti = firstItem.GetComponent<ToggleItem>();
-            if (ti != null && ti.targetGameObjects != null && ti.targetGameObjects.Count > 0)
-                itemsToRecord = ti.targetGameObjects.ToArray();
+            if (firstItem.targetGameObjects != null && firstItem.targetGameObjects.Count > 0)
+                itemsToRecord = firstItem.targetGameObjects.ToArray();
             else
                 itemsToRecord = new GameObject[] { firstItem.gameObject };
 
@@ -198,7 +209,6 @@ public class ToggleConfigEditor : Editor
         foreach (ToggleItem item in toggleItems)
         {
             GameObject toggleObj = item.gameObject;
-            // 토글 오브젝트 이름을 그대로 그룹명으로 사용
             string groupName = toggleObj.name;
             string paramName = GetParameterNameFromToggle(toggleObj);
             if (string.IsNullOrEmpty(paramName))
@@ -211,18 +221,30 @@ public class ToggleConfigEditor : Editor
             else
                 itemsToRecord = new GameObject[] { toggleObj };
 
+            // on/off anim 파일 생성(활성/비활성)
+            // ※ 삭제하지 않음
             AnimationClip onClip = ForceRecordState(itemsToRecord, rootObject, targetFolder, groupName, paramName, true);
             AnimationClip offClip = ForceRecordState(itemsToRecord, rootObject, targetFolder, groupName, paramName, false);
 
-            RecreateToggleAnimationForToggle(toggleObj, rootObject, targetFolder, groupName, paramName, _toggleConfig.toggleConfig.toggleReverse, animatorController);
+            RecreateToggleAnimationForToggle(
+                toggleObj,
+                rootObject,
+                targetFolder,
+                groupName,
+                paramName,
+                _toggleConfig.toggleConfig.toggleReverse,
+                animatorController,
+                onClip,
+                offClip
+            );
         }
-        
-        // 추가: 각 ToggleItem에 대해 블렌드 쉐입 애니메이션 재갱신 (ApplyBlendShape 호출)
+
+        // 블렌드 쉐이프 재갱신
         foreach (ToggleItem item in toggleItems)
         {
             ToggleItemEditor.ApplyBlendShapeToItem(item);
         }
-        
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         EditorUtility.DisplayDialog(
@@ -231,19 +253,17 @@ public class ToggleConfigEditor : Editor
             "OK");
     }
 
-    // Returns the Control.parameter.name from the ModularAvatarMenuItem attached to the ToggleItem
-    private static string GetParameterNameFromToggle(GameObject toggleObj)
-    {
-        var menuItem = toggleObj.GetComponent<ModularAvatarMenuItem>();
-        if (menuItem != null && menuItem.Control != null && menuItem.Control.parameter != null)
-        {
-            return menuItem.Control.parameter.name;
-        }
-        return null;
-    }
-
-    // ForceRecordState: 기존 애니메이션 클립을 덮어쓰고 새 클립을 생성
-    private static AnimationClip ForceRecordState(GameObject[] items, GameObject rootObject, string folderPath, string groupName, string paramName, bool activation)
+    /// <summary>
+    /// ForceRecordState: 기존 애니메이션 클립을 덮어쓰고 새 클립을 생성(m_IsActive 기록)
+    /// </summary>
+    private static AnimationClip ForceRecordState(
+        GameObject[] items,
+        GameObject rootObject,
+        string folderPath,
+        string groupName,
+        string paramName,
+        bool activation
+    )
     {
         string stateName = activation ? "on" : "off";
         string concatenatedNames = (items != null && items.Length > 0)
@@ -252,51 +272,48 @@ public class ToggleConfigEditor : Editor
         string hash = Md5Hash(rootObject.name + "_" + concatenatedNames);
         string clipName = $"Toggle_{concatenatedNames}_{hash}_{stateName}";
         string fullPath = $"{folderPath}/{clipName}.anim";
-    
+
         var existingClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(fullPath);
         if (existingClip != null)
         {
             AssetDatabase.DeleteAsset(fullPath);
             AssetDatabase.Refresh();
         }
-    
+
         AnimationClip clip = new AnimationClip { name = clipName };
         AnimationCurve curve = new AnimationCurve();
         curve.AddKey(0f, activation ? 1f : 0f);
-    
+
         foreach (GameObject obj in items)
         {
             string path = AnimationUtility.CalculateTransformPath(obj.transform, rootObject.transform);
-            Debug.Log($"[ForceRecordState] Target object '{obj.name}' path: {path}");
             EditorCurveBinding binding = EditorCurveBinding.FloatCurve(path, typeof(GameObject), "m_IsActive");
             AnimationUtility.SetEditorCurve(clip, binding, curve);
         }
-    
+
         AssetDatabase.CreateAsset(clip, fullPath);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         return clip;
     }
 
-    // RecreateToggleAnimationForToggle: 상태 머신 레이어를 새로 생성하거나 갱신하여 on/off 애니메이션을 연결
-    private void RecreateToggleAnimationForToggle(GameObject toggleObj, GameObject rootObject, string targetFolder, string groupName, string paramName, bool toggleReverse, AnimatorController animatorController)
+    /// <summary>
+    /// RecreateToggleAnimationForToggle: on/off 상태머신 갱신
+    /// </summary>
+    private void RecreateToggleAnimationForToggle(
+        GameObject toggleObj,
+        GameObject rootObject,
+        string targetFolder,
+        string groupName,
+        string paramName,
+        bool toggleReverse,
+        AnimatorController animatorController,
+        AnimationClip onClip,
+        AnimationClip offClip
+    )
     {
-        if (animatorController == null)
-        {
-            Debug.LogWarning("AnimatorController not found or cannot be converted.");
-            return;
-        }
-    
-        GameObject[] items;
-        ToggleItem ti = toggleObj.GetComponent<ToggleItem>();
-        if (ti != null && ti.targetGameObjects != null && ti.targetGameObjects.Count > 0)
-            items = ti.targetGameObjects.ToArray();
-        else
-            items = new GameObject[] { toggleObj };
-    
-        AnimationClip onClip = ForceRecordState(items, rootObject, targetFolder, groupName, paramName, true);
-        AnimationClip offClip = ForceRecordState(items, rootObject, targetFolder, groupName, paramName, false);
-    
+        if (animatorController == null) return;
+
         AnimatorControllerLayer existingLayer = animatorController.layers.FirstOrDefault(l => l.name == paramName);
         AnimatorStateMachine sm;
         if (existingLayer != null)
@@ -323,44 +340,71 @@ public class ToggleConfigEditor : Editor
             newLayer.defaultWeight = 1f;
             animatorController.AddLayer(newLayer);
         }
-    
+
+        // 기존 on/off 스테이트
         AnimatorState onState = sm.states.FirstOrDefault(s => s.state.name == "on").state;
         AnimatorState offState = sm.states.FirstOrDefault(s => s.state.name == "off").state;
-        if (onState == null)
-            onState = sm.AddState("on");
-        if (offState == null)
-            offState = sm.AddState("off");
-    
-        onState.motion = onClip;
-        offState.motion = offClip;
-        sm.defaultState = offState;
-    
-        foreach (var t in onState.transitions.ToArray())
+
+        if (onClip != null)
         {
-            onState.RemoveTransition(t);
+            if (onState == null) onState = sm.AddState("on");
+            onState.motion = onClip;
         }
-        foreach (var t in offState.transitions.ToArray())
+        if (offClip != null)
         {
-            offState.RemoveTransition(t);
+            if (offState == null) offState = sm.AddState("off");
+            offState.motion = offClip;
         }
-    
-        AnimatorConditionMode conditionModeForOn = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
-        AnimatorConditionMode conditionModeForOff = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
-    
-        AnimatorStateTransition transitionToOn = offState.AddTransition(onState);
-        transitionToOn.hasExitTime = false;
-        transitionToOn.exitTime = 0f;
-        transitionToOn.duration = 0f;
-        transitionToOn.AddCondition(conditionModeForOn, 0, paramName);
-    
-        AnimatorStateTransition transitionToOff = onState.AddTransition(offState);
-        transitionToOff.hasExitTime = false;
-        transitionToOff.exitTime = 0f;
-        transitionToOff.duration = 0f;
-        transitionToOff.AddCondition(conditionModeForOff, 0, paramName);
-    
+
+        // defaultState: offState 우선
+        if (offState != null)
+        {
+            sm.defaultState = offState;
+        }
+        else if (onState != null)
+        {
+            sm.defaultState = onState;
+        }
+
+        // 기존 트랜지션 제거
+        if (onState != null)
+        {
+            foreach (var t in onState.transitions.ToArray()) onState.RemoveTransition(t);
+        }
+        if (offState != null)
+        {
+            foreach (var t in offState.transitions.ToArray()) offState.RemoveTransition(t);
+        }
+
+        // 새 트랜지션
+        if (onState != null && offState != null)
+        {
+            AnimatorConditionMode conditionModeForOn = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
+            AnimatorConditionMode conditionModeForOff = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
+
+            var transitionToOn = offState.AddTransition(onState);
+            transitionToOn.hasExitTime = false;
+            transitionToOn.duration = 0f;
+            transitionToOn.AddCondition(conditionModeForOn, 0, paramName);
+
+            var transitionToOff = onState.AddTransition(offState);
+            transitionToOff.hasExitTime = false;
+            transitionToOff.duration = 0f;
+            transitionToOff.AddCondition(conditionModeForOff, 0, paramName);
+        }
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+    }
+
+    private static string GetParameterNameFromToggle(GameObject toggleObj)
+    {
+        var menuItem = toggleObj.GetComponent<ModularAvatarMenuItem>();
+        if (menuItem != null && menuItem.Control != null && menuItem.Control.parameter != null)
+        {
+            return menuItem.Control.parameter.name;
+        }
+        return null;
     }
 
     private static string Md5Hash(string input)
@@ -415,7 +459,7 @@ public class ToggleConfigEditor : Editor
             toggleMenuName = targetObject.toggleConfig.toggleMenuName,
         };
         string json = JsonUtility.ToJson(data, true);
-        System.IO.File.WriteAllText(jsonFilePath, json);
+        File.WriteAllText(jsonFilePath, json);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         EditorUtility.DisplayDialog(
@@ -426,7 +470,7 @@ public class ToggleConfigEditor : Editor
 
     private void ResetSettings()
     {
-        if (System.IO.File.Exists(jsonFilePath))
+        if (File.Exists(jsonFilePath))
         {
             ToggleSettings data = new ToggleSettings
             {
@@ -435,7 +479,7 @@ public class ToggleConfigEditor : Editor
                 toggleMenuName = "Toggles",
             };
             string json = JsonUtility.ToJson(data, true);
-            System.IO.File.WriteAllText(jsonFilePath, json);
+            File.WriteAllText(jsonFilePath, json);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             var targetObject = (ToggleConfig)target;
@@ -461,9 +505,9 @@ public class ToggleConfigEditor : Editor
 
     private void LoadSettings()
     {
-        if (System.IO.File.Exists(jsonFilePath))
+        if (File.Exists(jsonFilePath))
         {
-            string json = System.IO.File.ReadAllText(jsonFilePath);
+            string json = File.ReadAllText(jsonFilePath);
             ToggleSettings data = JsonUtility.FromJson<ToggleSettings>(json);
             var targetObject = (ToggleConfig)target;
             if (targetObject != null)
@@ -482,7 +526,6 @@ public class ToggleConfigEditor : Editor
         }
     }
 
-    // Modular Avatar: Parent MenuItem 설정 (for linking with ModularAvatarMergeAnimator)
     private static void ConfigureParentMenuItem(GameObject obj)
     {
         obj.AddComponent<ToggleConfig>();
