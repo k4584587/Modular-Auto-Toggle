@@ -5,6 +5,9 @@
     },
     "vrchat.blackstartx.gesture-manager": {
       "version": "3.9.3"
+    },
+    "jp.lilxyzw.liltoon": {
+      "version": "1.8.5"
     }
   },
   "locked": {
@@ -34,6 +37,10 @@
       "dependencies": {
         "com.vrchat.avatars": ">=3.5.2 <3.8.X"
       }
+    },
+    "jp.lilxyzw.liltoon": {
+      "version": "1.8.5",
+      "dependencies": {}
     }
   }
 }
