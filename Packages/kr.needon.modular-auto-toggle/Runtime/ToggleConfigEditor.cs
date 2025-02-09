@@ -33,21 +33,6 @@ public class ToggleConfigEditor : Editor
         EditorApplication.update += UpdateIcons;
     }
 
-    // MD5 hash generation function
-    private static string Md5Hash(string input)
-    {
-        using (MD5 md5 = MD5.Create())
-        {
-            byte[] hashBytes = md5.ComputeHash(Encoding.ASCII.GetBytes(input));
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in hashBytes)
-            {
-                sb.Append(b.ToString("X2"));
-            }
-            return sb.ToString();
-        }
-    }
-
     private static void UpdateIcons()
     {
         var toggleConfigs = Resources.FindObjectsOfTypeAll<ToggleConfig>();
@@ -181,7 +166,7 @@ public class ToggleConfigEditor : Editor
             mergeAnimator = toggleGroup.GetComponent<ModularAvatarMergeAnimator>();
         }
         {
-            // 파일 이름은 토글 오브젝트의 이름(즉, ToggleItem이 부착된 오브젝트의 이름)을 기준으로 함
+            // 첫 번째 토글 아이템을 기준으로 애니메이터 컨트롤러 생성
             ToggleItem firstItem = toggleItems[0];
             string groupName = firstItem.gameObject.name;
             string paramName = GetParameterNameFromToggle(firstItem.gameObject);
@@ -213,7 +198,7 @@ public class ToggleConfigEditor : Editor
         foreach (ToggleItem item in toggleItems)
         {
             GameObject toggleObj = item.gameObject;
-            // groupName은 토글 오브젝트의 이름 그대로 사용
+            // 토글 오브젝트 이름을 그대로 그룹명으로 사용
             string groupName = toggleObj.name;
             string paramName = GetParameterNameFromToggle(toggleObj);
             if (string.IsNullOrEmpty(paramName))
@@ -228,10 +213,16 @@ public class ToggleConfigEditor : Editor
 
             AnimationClip onClip = ForceRecordState(itemsToRecord, rootObject, targetFolder, groupName, paramName, true);
             AnimationClip offClip = ForceRecordState(itemsToRecord, rootObject, targetFolder, groupName, paramName, false);
-    
+
             RecreateToggleAnimationForToggle(toggleObj, rootObject, targetFolder, groupName, paramName, _toggleConfig.toggleConfig.toggleReverse, animatorController);
         }
-    
+        
+        // 추가: 각 ToggleItem에 대해 블렌드 쉐입 애니메이션 재갱신 (ApplyBlendShape 호출)
+        foreach (ToggleItem item in toggleItems)
+        {
+            ToggleItemEditor.ApplyBlendShapeToItem(item);
+        }
+        
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         EditorUtility.DisplayDialog(
@@ -251,18 +242,14 @@ public class ToggleConfigEditor : Editor
         return null;
     }
 
-    // ForceRecordState: Overwrites existing animation clip and creates a new one
-    // File name format: Toggle_[concatenated targetGameObjects names]_[MD5 hash]_[state].anim
+    // ForceRecordState: 기존 애니메이션 클립을 덮어쓰고 새 클립을 생성
     private static AnimationClip ForceRecordState(GameObject[] items, GameObject rootObject, string folderPath, string groupName, string paramName, bool activation)
     {
         string stateName = activation ? "on" : "off";
-        // Concatenate the names of targetGameObjects in order (if available), otherwise use groupName
         string concatenatedNames = (items != null && items.Length > 0)
             ? string.Join("_", items.Select(obj => obj.name))
             : groupName;
-        // Generate MD5 hash based on rootObject name and concatenated names
         string hash = Md5Hash(rootObject.name + "_" + concatenatedNames);
-        // Compose file name: Toggle_[concatenatedNames]_[hash]_[state].anim
         string clipName = $"Toggle_{concatenatedNames}_{hash}_{stateName}";
         string fullPath = $"{folderPath}/{clipName}.anim";
     
@@ -291,7 +278,7 @@ public class ToggleConfigEditor : Editor
         return clip;
     }
 
-    // RecreateToggleAnimationForToggle: Refreshes or creates a new state machine layer with the same parameter name in the AnimatorController
+    // RecreateToggleAnimationForToggle: 상태 머신 레이어를 새로 생성하거나 갱신하여 on/off 애니메이션을 연결
     private void RecreateToggleAnimationForToggle(GameObject toggleObj, GameObject rootObject, string targetFolder, string groupName, string paramName, bool toggleReverse, AnimatorController animatorController)
     {
         if (animatorController == null)
@@ -374,6 +361,20 @@ public class ToggleConfigEditor : Editor
     
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
+    }
+
+    private static string Md5Hash(string input)
+    {
+        using (MD5 md5 = MD5.Create())
+        {
+            byte[] hashBytes = md5.ComputeHash(Encoding.ASCII.GetBytes(input));
+            StringBuilder sb = new StringBuilder();
+            foreach (byte b in hashBytes)
+            {
+                sb.Append(b.ToString("X2"));
+            }
+            return sb.ToString();
+        }
     }
 
     private static void SetUnityObjectIcon(UnityEngine.Object unityObject, Texture2D icon)
