@@ -297,105 +297,116 @@ public class ToggleConfigEditor : Editor
         return clip;
     }
 
-    /// <summary>
-    /// RecreateToggleAnimationForToggle: on/off 상태머신 갱신
-    /// </summary>
-    private void RecreateToggleAnimationForToggle(
-        GameObject toggleObj,
-        GameObject rootObject,
-        string targetFolder,
-        string groupName,
-        string paramName,
-        bool toggleReverse,
-        AnimatorController animatorController,
-        AnimationClip onClip,
-        AnimationClip offClip
-    )
+   /// <summary>
+/// RecreateToggleAnimationForToggle: on/off 상태머신 갱신
+/// </summary>
+private void RecreateToggleAnimationForToggle(
+    GameObject toggleObj,
+    GameObject rootObject,
+    string targetFolder,
+    string groupName,
+    string paramName,
+    bool toggleReverse,
+    AnimatorController animatorController,
+    AnimationClip onClip,
+    AnimationClip offClip
+)
+{
+    if (animatorController == null) return;
+    
+    // 해당 파라미터가 없으면 생성
+    if (!animatorController.parameters.Any(p => p.name == paramName))
     {
-        if (animatorController == null) return;
+        AnimatorControllerParameter newParam = new AnimatorControllerParameter();
+        newParam.name = paramName;
+        newParam.type = AnimatorControllerParameterType.Bool;
+        newParam.defaultBool = true;
+        animatorController.AddParameter(newParam);
+    }
 
-        AnimatorControllerLayer existingLayer = animatorController.layers.FirstOrDefault(l => l.name == paramName);
-        AnimatorStateMachine sm;
-        if (existingLayer != null)
-        {
-            sm = existingLayer.stateMachine;
-            if (sm == null)
-            {
-                sm = new AnimatorStateMachine();
-                sm.name = paramName;
-                sm.hideFlags = HideFlags.HideInHierarchy;
-                existingLayer.stateMachine = sm;
-                AssetDatabase.AddObjectToAsset(sm, animatorController);
-            }
-        }
-        else
+    AnimatorControllerLayer existingLayer = animatorController.layers.FirstOrDefault(l => l.name == paramName);
+    AnimatorStateMachine sm;
+    if (existingLayer != null)
+    {
+        sm = existingLayer.stateMachine;
+        if (sm == null)
         {
             sm = new AnimatorStateMachine();
             sm.name = paramName;
             sm.hideFlags = HideFlags.HideInHierarchy;
+            existingLayer.stateMachine = sm;
             AssetDatabase.AddObjectToAsset(sm, animatorController);
-            AnimatorControllerLayer newLayer = new AnimatorControllerLayer();
-            newLayer.name = paramName;
-            newLayer.stateMachine = sm;
-            newLayer.defaultWeight = 1f;
-            animatorController.AddLayer(newLayer);
         }
-
-        // 기존 on/off 스테이트
-        AnimatorState onState = sm.states.FirstOrDefault(s => s.state.name == "on").state;
-        AnimatorState offState = sm.states.FirstOrDefault(s => s.state.name == "off").state;
-
-        if (onClip != null)
-        {
-            if (onState == null) onState = sm.AddState("on");
-            onState.motion = onClip;
-        }
-        if (offClip != null)
-        {
-            if (offState == null) offState = sm.AddState("off");
-            offState.motion = offClip;
-        }
-
-        // defaultState: offState 우선
-        if (offState != null)
-        {
-            sm.defaultState = offState;
-        }
-        else if (onState != null)
-        {
-            sm.defaultState = onState;
-        }
-
-        // 기존 트랜지션 제거
-        if (onState != null)
-        {
-            foreach (var t in onState.transitions.ToArray()) onState.RemoveTransition(t);
-        }
-        if (offState != null)
-        {
-            foreach (var t in offState.transitions.ToArray()) offState.RemoveTransition(t);
-        }
-
-        // 새 트랜지션
-        if (onState != null && offState != null)
-        {
-            AnimatorConditionMode conditionModeForOn = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
-            AnimatorConditionMode conditionModeForOff = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
-
-            var transitionToOn = offState.AddTransition(onState);
-            transitionToOn.hasExitTime = false;
-            transitionToOn.duration = 0f;
-            transitionToOn.AddCondition(conditionModeForOn, 0, paramName);
-
-            var transitionToOff = onState.AddTransition(offState);
-            transitionToOff.hasExitTime = false;
-            transitionToOff.duration = 0f;
-            transitionToOff.AddCondition(conditionModeForOff, 0, paramName);
-        }
-
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
     }
+    else
+    {
+        sm = new AnimatorStateMachine();
+        sm.name = paramName;
+        sm.hideFlags = HideFlags.HideInHierarchy;
+        AssetDatabase.AddObjectToAsset(sm, animatorController);
+        AnimatorControllerLayer newLayer = new AnimatorControllerLayer();
+        newLayer.name = paramName;
+        newLayer.stateMachine = sm;
+        newLayer.defaultWeight = 1f;
+        animatorController.AddLayer(newLayer);
+    }
+
+    // 기존 on/off 상태 스테이트 생성 또는 할당
+    AnimatorState onState = sm.states.FirstOrDefault(s => s.state.name == "on").state;
+    AnimatorState offState = sm.states.FirstOrDefault(s => s.state.name == "off").state;
+
+    if (onClip != null)
+    {
+        if (onState == null) onState = sm.AddState("on");
+        onState.motion = onClip;
+    }
+    if (offClip != null)
+    {
+        if (offState == null) offState = sm.AddState("off");
+        offState.motion = offClip;
+    }
+
+    // 기본 상태: offState 우선
+    if (offState != null)
+    {
+        sm.defaultState = offState;
+    }
+    else if (onState != null)
+    {
+        sm.defaultState = onState;
+    }
+
+    // 기존 트랜지션 제거
+    if (onState != null)
+    {
+        foreach (var t in onState.transitions.ToArray()) onState.RemoveTransition(t);
+    }
+    if (offState != null)
+    {
+        foreach (var t in offState.transitions.ToArray()) offState.RemoveTransition(t);
+    }
+
+    // 새 트랜지션 추가
+    if (onState != null && offState != null)
+    {
+        AnimatorConditionMode conditionModeForOn = toggleReverse ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If;
+        AnimatorConditionMode conditionModeForOff = toggleReverse ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot;
+
+        var transitionToOn = offState.AddTransition(onState);
+        transitionToOn.hasExitTime = false;
+        transitionToOn.duration = 0f;
+        transitionToOn.AddCondition(conditionModeForOn, 0, paramName);
+
+        var transitionToOff = onState.AddTransition(offState);
+        transitionToOff.hasExitTime = false;
+        transitionToOff.duration = 0f;
+        transitionToOff.AddCondition(conditionModeForOff, 0, paramName);
+    }
+
+    AssetDatabase.SaveAssets();
+    AssetDatabase.Refresh();
+}
+
 
     private static string GetParameterNameFromToggle(GameObject toggleObj)
     {
