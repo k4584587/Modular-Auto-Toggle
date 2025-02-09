@@ -10,7 +10,6 @@ using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
-//v1.0.71
 namespace Editor
 {
     public abstract class AutoToggleCreator
@@ -44,8 +43,7 @@ namespace Editor
             LoadComponentNameFromEditorPrefs();
 
             GameObject[] selectedObjects = Selection.gameObjects;
-            GameObject rootObject = null;
-            rootObject = selectedObjects[0].transform.root.gameObject;
+            GameObject rootObject = selectedObjects[0].transform.root.gameObject;
             string targetFolder = folderPath + "/" + rootObject.name;
             Debug.Log("targetFolderPath :: " + targetFolder);
 
@@ -82,7 +80,7 @@ namespace Editor
                 return;
             }
 
-            if (!rootObject)
+            if (rootObject == null)
             {
                 Debug.LogError("The selected GameObject has no parent.\n선택한 오브젝트에 부모 오브젝트가 없습니다.");
                 EditorUtility.DisplayDialog("Error", "The selected GameObject has no parent.", "OK");
@@ -156,16 +154,21 @@ namespace Editor
         private static void CreateToggleObject(GameObject[] items, GameObject rootObject, string targetFolder)
         {
             var toggleTransform = rootObject.transform.Find(toggleMenuName);
-            var toggleGameObject = !toggleTransform ? null : toggleTransform.gameObject;
+            var toggleGameObject = toggleTransform ? toggleTransform.gameObject : null;
             string groupName = string.Join("_", items.Select(obj => obj.name));
             string paramName = Md5Hash(rootObject.name + "_" + groupName);
             int currentStep = 0, totalSteps = 6;
 
             UpdateProgressBar(currentStep++, totalSteps, "Initializing...");
-            if (!toggleGameObject || toggleGameObject.GetComponentsInChildren<ToggleConfig>().Length <= 0)
+            if (toggleGameObject == null || toggleGameObject.GetComponentsInChildren<ToggleConfig>().Length <= 0)
             {
                 toggleGameObject = new GameObject(toggleMenuName);
                 toggleTransform = toggleGameObject.transform;
+                Debug.Log($"[DEBUG] 새 토글 부모 오브젝트 '{toggleGameObject.name}' 생성됨.");
+            }
+            else
+            {
+                Debug.Log($"[DEBUG] 기존 토글 부모 오브젝트 '{toggleGameObject.name}' 발견됨.");
             }
 
             toggleTransform.SetParent(rootObject.transform, false);
@@ -173,6 +176,39 @@ namespace Editor
             UpdateProgressBar(currentStep++, totalSteps, "Creating Toggle Object...");
             GameObject newObj = new GameObject("Toggle_" + groupName);
             newObj.transform.SetParent(toggleTransform, false);
+            Debug.Log($"[DEBUG] 새 토글 오브젝트 생성됨: '{newObj.name}'");
+
+            // Undo 등록(에디터 상에서 Undo/Redo 가능하도록)
+            Undo.RegisterCreatedObjectUndo(newObj, $"Create {newObj.name}");
+
+            // ToggleItem 컴포넌트 추가 및 targetGameObjects 설정
+            ToggleItem toggleItem = newObj.AddComponent<ToggleItem>();
+            if (toggleItem == null)
+            {
+                Debug.LogError("[DEBUG] ToggleItem 컴포넌트 추가에 실패했습니다.");
+            }
+            else
+            {
+                Debug.Log("[DEBUG] ToggleItem 컴포넌트가 성공적으로 추가되었습니다.");
+            }
+
+            // targetGameObjects 할당 전 Undo.RecordObject로 변경 기록
+            Undo.RecordObject(toggleItem, "Set targetGameObjects");
+            // 만약 targetGameObjects 필드가 null이면 새 리스트를 생성하고, 아니면 초기화합니다.
+            if (toggleItem.targetGameObjects == null)
+            {
+                toggleItem.targetGameObjects = new System.Collections.Generic.List<GameObject>();
+            }
+            else
+            {
+                toggleItem.targetGameObjects.Clear();
+            }
+            // 선택된 모든 오브젝트를 targetGameObjects 리스트에 추가합니다.
+            toggleItem.targetGameObjects.AddRange(items);
+            Debug.Log($"[DEBUG] ToggleItem의 targetGameObjects가 다음 오브젝트들로 할당되었습니다: {string.Join(", ", items.Select(obj => obj.name))}");
+
+            // 변경 사항을 에디터에 반영
+            EditorUtility.SetDirty(toggleItem);
 
             UpdateProgressBar(currentStep++, totalSteps, "Configure Parameter...");
             ConfigureAvatarParameters(newObj, paramName);
@@ -180,17 +216,19 @@ namespace Editor
             UpdateProgressBar(currentStep++, totalSteps, "Configure Menu...");
             ConfigureMenuItem(newObj, paramName);
 
-            newObj.AddComponent<ToggleItem>();
-
             var mergeAnimator = toggleGameObject.GetComponent<ModularAvatarMergeAnimator>();
 
             UpdateProgressBar(currentStep++, totalSteps, "Configure MA Settings...");
-
-            if (!mergeAnimator)
+            if (mergeAnimator == null)
             {
                 toggleGameObject.AddComponent<ModularAvatarMenuInstaller>();
                 ConfigureParentMenuItem(toggleGameObject);
                 mergeAnimator = toggleGameObject.AddComponent<ModularAvatarMergeAnimator>();
+                Debug.Log("[DEBUG] 토글 부모에 ModularAvatarMergeAnimator 컴포넌트가 추가되었습니다.");
+            }
+            else
+            {
+                Debug.Log("[DEBUG] 기존 ModularAvatarMergeAnimator 컴포넌트를 토글 부모에서 찾았습니다.");
             }
 
             UpdateProgressBar(currentStep++, totalSteps, "Configure Animator...");
@@ -204,14 +242,14 @@ namespace Editor
             AssetDatabase.Refresh();
         }
 
+
         private static AnimatorController ConfigureAnimator(GameObject[] items, GameObject rootObject,
             string targetFolder, string groupName, string paramName)
         {
             string animatorPath = targetFolder + "/toggle_fx.controller";
 
-            AnimatorController toggleAnimator = null;
-
-            if ((toggleAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(animatorPath)) == null)
+            AnimatorController toggleAnimator = AssetDatabase.LoadAssetAtPath<AnimatorController>(animatorPath);
+            if (toggleAnimator == null)
             {
                 toggleAnimator = AnimatorController.CreateAnimatorControllerAtPath(animatorPath);
                 toggleAnimator.RemoveLayer(0);
@@ -278,7 +316,6 @@ namespace Editor
             return toggleAnimator;
         }
 
-
         private static AnimationClip RecordState(GameObject[] items, GameObject rootObject, string folderPath,
             string groupName, bool activation)
         {
@@ -343,11 +380,10 @@ namespace Editor
             menuItem.Control = menuItem.Control ?? new VRCExpressionsMenu.Control();
 
             menuItem.Control.type = VRCExpressionsMenu.Control.ControlType.Toggle;
-            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = paramName }; //모듈러 파라미터 이름 설정
+            menuItem.Control.parameter = new VRCExpressionsMenu.Control.Parameter { name = paramName };
             menuItem.Control.icon =
                 AssetDatabase.LoadAssetAtPath<Texture2D>(
                     "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
-            ; // 메뉴 아이콘 설정
         }
 
         private static void ConfigureParentMenuItem(GameObject obj)
@@ -362,7 +398,6 @@ namespace Editor
             menuItem.Control.icon =
                 AssetDatabase.LoadAssetAtPath<Texture2D>(
                     "Packages/kr.needon.modular-auto-toggle/Resource/toggleON.png");
-            ; // 메뉴 아이콘 설정
         }
 
         // Settings

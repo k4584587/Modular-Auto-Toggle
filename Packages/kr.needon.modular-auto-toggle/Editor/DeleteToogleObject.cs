@@ -312,7 +312,7 @@ namespace Editor
             if (File.Exists(jsonFilePath))
             {
                 string json = File.ReadAllText(jsonFilePath);
-                var settings = JsonUtility.FromJson<ToggleSettings>(json);
+                var settings = JsonUtility.FromJson<DeleteToggleEditor.ToggleSettings>(json);
                 return settings.toggleMenuName;
             }
 
