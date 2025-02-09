@@ -12,7 +12,7 @@ namespace Runtime
     public class ToggleItemEditor : Editor
     {
         private Texture2D _icon;
-        private bool _applyToOnAnimation = true;  // On 애니메이션에 적용 여부
+        private bool _applyToOnAnimation = true; // On 애니메이션에 적용 여부
         private bool _applyToOffAnimation = true; // Off 애니메이션에 적용 여부
 
         private const string ApplyToOnAnimationKey = "ToggleItemEditor_ApplyToOnAnimation";
@@ -44,10 +44,10 @@ namespace Runtime
         {
             // 직렬화 업데이트
             serializedObject.Update();
-            
+
             // targetGameObjects 프로퍼티를 찾습니다.
             var spTargetObjects = serializedObject.FindProperty("targetGameObjects");
-            if(spTargetObjects != null)
+            if (spTargetObjects != null)
             {
                 EditorGUILayout.PropertyField(spTargetObjects, new GUIContent("Target Toggle Objects"), true);
             }
@@ -55,12 +55,12 @@ namespace Runtime
             {
                 EditorGUILayout.HelpBox("ToggleItem에 targetGameObjects 필드가 존재하지 않습니다.", MessageType.Error);
             }
-            
+
             serializedObject.ApplyModifiedProperties();
-            
+
             // ToggleItem 대상
             ToggleItem toggleItem = (ToggleItem)target;
-            
+
             // Blend Shape 리스트
             var blendShapesToChange = serializedObject.FindProperty("_blendShapesToChange");
             EditorGUILayout.LabelField("Blend Shapes");
@@ -149,6 +149,7 @@ namespace Runtime
                     blendShapesToChange.DeleteArrayElementAtIndex(blendShapesToChange.arraySize - 1);
                 }
             }
+
             EditorGUILayout.EndHorizontal();
 
             EditorGUI.indentLevel--;
@@ -164,167 +165,111 @@ namespace Runtime
             // Apply 버튼
             if (GUILayout.Button("Apply"))
             {
-                ApplyBlendShape();
-            }
+                // EditorPrefs를 현재 토글 상태로 업데이트
+                EditorPrefs.SetBool(ApplyToOnAnimationKey, _applyToOnAnimation);
+                EditorPrefs.SetBool(ApplyToOffAnimationKey, _applyToOffAnimation);
 
-            // 블렌드 쉐입을 실제 애니메이션 클립에 적용하는 함수
-            void ApplyBlendShape()
-            {
-                // ModularAvatarMenuItem 가져오기
-                var menuItem = toggleItem.GetComponent<ModularAvatarMenuItem>();
-                if (menuItem != null)
-                {
-                    Debug.Log($"MAMenuItem found: {menuItem.name}");
-
-                    // Control 프로퍼티 접근
-                    var control = menuItem.Control;
-
-                    // 파라미터 이름 및 루트 이름
-                    string parameterName = control.parameter?.name ?? "None";
-                    string rootName = menuItem.transform.root.name;
-                    Debug.Log($"Parameter name: {parameterName}");
-
-                    // *.anim 파일 찾기
-                    string fullPath = FindFileByGuid(parameterName, "Assets/Hirami/Toggle/" + rootName)
-                        .Replace("_off.anim", "");
-
-                    string onToggleAnimePath = fullPath + "_on.anim";
-                    string offToggleAnimePath = fullPath + "_off.anim";
-
-                    bool onToggleExists = File.Exists(onToggleAnimePath);
-                    bool offToggleExists = File.Exists(offToggleAnimePath);
-
-                    if (onToggleExists && offToggleExists)
-                    {
-                        AnimationClip onClip = _applyToOnAnimation
-                            ? AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath)
-                            : null;
-                        AnimationClip offClip = _applyToOffAnimation
-                            ? AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath)
-                            : null;
-
-                        // 기존 블렌드 쉐입 애니메이션 클리어
-                        if (_applyToOnAnimation)
-                        {
-                            ClearAllBlendShapeAnimations(onClip, toggleItem);
-                        }
-                        if (_applyToOffAnimation)
-                        {
-                            ClearAllBlendShapeAnimations(offClip, toggleItem);
-                        }
-
-                        // 새로 추가
-                        foreach (var blendShapeChange in toggleItem.BlendShapesToChange)
-                        {
-                            var skinnedMeshRenderer = blendShapeChange.SkinnedMesh;
-                            if (skinnedMeshRenderer == null) continue;
-
-                            // targetGameObjects가 할당되어 있다면
-                            if (toggleItem.targetGameObjects != null && toggleItem.targetGameObjects.Count > 0)
-                            {
-                                foreach (GameObject targetObj in toggleItem.targetGameObjects)
-                                {
-                                    var blendShapePath = AnimationUtility.CalculateTransformPath(skinnedMeshRenderer.transform, targetObj.transform);
-                                    // onClip 설정
-                                    if (onClip != null)
-                                    {
-                                        AnimationCurve onCurve = AnimationCurve.Linear(
-                                            0, blendShapeChange.value,
-                                            0, blendShapeChange.value
-                                        );
-                                        onClip.SetCurve(
-                                            blendShapePath,
-                                            typeof(SkinnedMeshRenderer),
-                                            $"blendShape.{blendShapeChange.name}",
-                                            onCurve
-                                        );
-                                    }
-                                    // offClip 설정
-                                    if (offClip != null)
-                                    {
-                                        AnimationCurve offCurve = AnimationCurve.Linear(
-                                            0, blendShapeChange.value,
-                                            0, blendShapeChange.value
-                                        );
-                                        offClip.SetCurve(
-                                            blendShapePath,
-                                            typeof(SkinnedMeshRenderer),
-                                            $"blendShape.{blendShapeChange.name}",
-                                            offCurve
-                                        );
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // targetGameObjects가 없으면 스킨 메시의 루트를 기준으로 함
-                                var referenceRoot = skinnedMeshRenderer.transform.root;
-                                var blendShapePath = AnimationUtility.CalculateTransformPath(skinnedMeshRenderer.transform, referenceRoot);
-                                // onClip 설정
-                                if (onClip != null)
-                                {
-                                    AnimationCurve onCurve = AnimationCurve.Linear(
-                                        0, blendShapeChange.value,
-                                        0, blendShapeChange.value
-                                    );
-                                    onClip.SetCurve(
-                                        blendShapePath,
-                                        typeof(SkinnedMeshRenderer),
-                                        $"blendShape.{blendShapeChange.name}",
-                                        onCurve
-                                    );
-                                }
-                                // offClip 설정
-                                if (offClip != null)
-                                {
-                                    AnimationCurve offCurve = AnimationCurve.Linear(
-                                        0, blendShapeChange.value,
-                                        0, blendShapeChange.value
-                                    );
-                                    offClip.SetCurve(
-                                        blendShapePath,
-                                        typeof(SkinnedMeshRenderer),
-                                        $"blendShape.{blendShapeChange.name}",
-                                        offCurve
-                                    );
-                                }
-                            }
-                            AssetDatabase.SaveAssets();
-                        }
-                    }
-                }
+                // 정적 메서드 호출
+                ApplyBlendShapeToItem(toggleItem);
             }
 
             serializedObject.ApplyModifiedProperties();
+        }
 
-            // 특정 AnimationClip에서 블렌드 쉐입에 해당하는 커브를 모두 제거
-            void ClearAllBlendShapeAnimations(AnimationClip clip, ToggleItem tItem)
+        /// <summary>
+        /// ToggleItem에 설정된 블렌드 쉐입 애니메이션을 실제 애니메이션 클립에 적용합니다.
+        /// </summary>
+        public static void ApplyBlendShapeToItem(ToggleItem toggleItem)
+        {
+            bool applyToOnAnimation = EditorPrefs.GetBool(ApplyToOnAnimationKey, true);
+            bool applyToOffAnimation = EditorPrefs.GetBool(ApplyToOffAnimationKey, true);
+
+            // ModularAvatarMenuItem 가져오기
+            var menuItem = toggleItem.GetComponent<ModularAvatarMenuItem>();
+            if (menuItem != null)
             {
-                if (clip == null) return;
-                var editorCurveBindings = AnimationUtility.GetCurveBindings(clip);
+                Debug.Log($"MAMenuItem found: {menuItem.name}");
 
-                foreach (var binding in editorCurveBindings)
+                // Control 프로퍼티 접근
+                var control = menuItem.Control;
+                string parameterName = control.parameter?.name ?? "None";
+                string rootName = menuItem.transform.root.name;
+                Debug.Log($"Parameter name: {parameterName}");
+
+                // *.anim 파일 찾기
+                string fullPath = FindFileByGuidStatic(parameterName, "Assets/Hirami/Toggle/" + rootName)
+                    .Replace("_off.anim", "");
+                string onToggleAnimePath = fullPath + "_on.anim";
+                string offToggleAnimePath = fullPath + "_off.anim";
+
+                bool onToggleExists = File.Exists(onToggleAnimePath);
+                bool offToggleExists = File.Exists(offToggleAnimePath);
+
+                if (onToggleExists && offToggleExists)
                 {
-                    // m_IsActive는 오브젝트 활성/비활성 처리이므로 건드리지 않음
-                    if (!binding.propertyName.Equals("m_IsActive"))
+                    // 두 애니메이션 클립을 무조건 로드하여 기존 커브를 클리어합니다.
+                    AnimationClip onClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(onToggleAnimePath);
+                    AnimationClip offClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(offToggleAnimePath);
+
+                    if (onClip != null)
                     {
-                        Debug.Log("path :: " + binding.path);
-                        AnimationUtility.SetEditorCurve(clip, binding, null);
+                        ClearAllBlendShapeAnimationsStatic(onClip);
                     }
+
+                    if (offClip != null)
+                    {
+                        ClearAllBlendShapeAnimationsStatic(offClip);
+                    }
+                    
+                    foreach (var blendShapeChange in toggleItem.BlendShapesToChange)
+                    {
+                        var skinnedMeshRenderer = blendShapeChange.SkinnedMesh;
+                        if (skinnedMeshRenderer == null) continue;
+
+                        // 스킨매쉬에 할당된 경로로 커브를 적용
+                        string blendShapePath = AnimationUtility.CalculateTransformPath(skinnedMeshRenderer.transform, skinnedMeshRenderer.transform.root);
+                        if (applyToOnAnimation && onClip != null)
+                        {
+                            AnimationCurve onCurve = AnimationCurve.Linear(0f, blendShapeChange.value, 0f, blendShapeChange.value);
+                            onClip.SetCurve(blendShapePath, typeof(SkinnedMeshRenderer), $"blendShape.{blendShapeChange.name}", onCurve);
+                        }
+
+                        if (applyToOffAnimation && offClip != null)
+                        {
+                            AnimationCurve offCurve = AnimationCurve.Linear(0f, blendShapeChange.value, 0f, blendShapeChange.value);
+                            offClip.SetCurve(blendShapePath, typeof(SkinnedMeshRenderer), $"blendShape.{blendShapeChange.name}", offCurve);
+                        }
+                    }
+
+                    AssetDatabase.SaveAssets();
                 }
-                AssetDatabase.SaveAssets();
             }
+        }
 
-            // GUID로 애니메이션 파일 경로 찾기
-            string FindFileByGuid(string guid, string searchFolder)
+
+        // GUID로 애니메이션 파일 경로 찾기 (정적 버전)
+        private static string FindFileByGuidStatic(string guid, string searchFolder)
+        {
+            var allFiles = Directory.GetFiles(searchFolder, "*", System.IO.SearchOption.AllDirectories);
+            var fileWithGuid = allFiles.FirstOrDefault(file =>
+                System.IO.Path.GetFileNameWithoutExtension(file).Contains(guid));
+            return fileWithGuid;
+        }
+
+        // AnimationClip에서 블렌드 쉐입 관련 커브를 모두 제거 (정적 버전)
+        private static void ClearAllBlendShapeAnimationsStatic(AnimationClip clip)
+        {
+            if (clip == null) return;
+            var editorCurveBindings = AnimationUtility.GetCurveBindings(clip);
+            foreach (var binding in editorCurveBindings)
             {
-                var allFiles = Directory.GetFiles(searchFolder, "*", System.IO.SearchOption.AllDirectories);
-                var fileWithGuid = allFiles.FirstOrDefault(file =>
-                    System.IO.Path.GetFileNameWithoutExtension(file).Contains(guid));
-                return fileWithGuid;
+                if (!binding.propertyName.Equals("m_IsActive"))
+                {
+                    AnimationUtility.SetEditorCurve(clip, binding, null);
+                }
             }
 
-            serializedObject.Update();
+            AssetDatabase.SaveAssets();
         }
     }
 }
