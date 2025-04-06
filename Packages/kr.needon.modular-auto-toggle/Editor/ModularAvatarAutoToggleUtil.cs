@@ -165,8 +165,8 @@ namespace Editor
         {
             var toggleTransform = rootObject.transform.Find(_toggleMenuName);
             var toggleGameObject = toggleTransform ? toggleTransform.gameObject : null;
-            string groupName = string.Join("_", items.Select(obj => obj.name));
-            string paramName = Md5Hash(rootObject.name + "_" + groupName);
+            var groupName = string.Join("_", items.Select(obj => obj.name));
+            var paramName = Md5Hash(rootObject.name + "_" + groupName + "_" + System.Guid.NewGuid());
             int currentStep = 0, totalSteps = 6;
 
             UpdateProgressBar(currentStep++, totalSteps, "Initializing... / 초기화 중...");
